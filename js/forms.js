@@ -209,6 +209,15 @@ const Forms = {
       </div><div class="modal-foot"><button class="btn danger" data-act="deleteProduct" data-id="${p.id}">${icon('trash')} ${p.builtin ? 'Remove from list' : 'Delete product'}</button><button class="btn" data-act="modalClose">Close</button></div>`);
   },
 
+  syncSetup() {
+    const c = Sync.cfg || {};
+    const body = `<p class="small muted" style="margin-top:0">Uses the private <b>rounds-data</b> repository and the access key you created on GitHub. The key is stored only on this device.</p>
+      <label class="field"><span>Repository</span><input type="text" name="repo" value="${esc(c.repo || Sync.defaultRepo())}" autocomplete="off" autocapitalize="off" placeholder="username/rounds-data"></label>
+      <label class="field"><span>Access key</span><input type="password" name="token" value="" autocomplete="off" autocapitalize="off" placeholder="github_pat_…" ${c.repo ? 'autofocus' : ''}></label>
+      <label class="field"><span>Name for this device</span><input type="text" name="device" value="${esc(c.device || Sync.defaultDevice())}" autocomplete="off"></label>
+      <p class="hint">The name just labels each sync in your repository's history.</p>`;
+    Modal.open(formSheet('syncSetup', 'Set up sync', body, { submit: 'Connect' }));
+  },
   types() {
     const s = Data.s.settings;
     const body = `<label class="field"><span>Account types (one per line)</span><textarea name="types" rows="8">${esc(s.accountTypes.join('\n'))}</textarea></label>
@@ -359,6 +368,15 @@ const FORMS = {
     for (const size of sizes.length ? sizes : ['']) n += addProduct({ ...f, size }) ? 1 : 0;
     Store.save(); Modal.close(); App.refresh();
     Toast.show(n ? `Added ${plural(n, 'product')}` : 'Already in your list');
+  },
+  async syncSetup(form, fd) {
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = 'Connecting…';
+    try {
+      const ok = await Sync.connect({ repo: val(fd, 'repo'), token: val(fd, 'token'), device: val(fd, 'device') });
+      if (ok) { await Modal.close(); App.refresh(); Toast.show('Sync is on for this device'); }
+    } catch (e) { Toast.show(e.message, [], 9000); }
+    finally { btn.disabled = false; btn.textContent = 'Connect'; }
   },
   types(form, fd) {
     const lines = (k) => uniqSorted(String(fd.get(k) || '').split('\n').map((x) => x.trim()));

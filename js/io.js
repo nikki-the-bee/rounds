@@ -32,7 +32,7 @@ const IO = {
     try { data = JSON.parse(await file.text()); } catch { return Toast.show('That file isn\'t a Rounds backup'); }
     const st = data?.state;
     if (!st || !Array.isArray(st.accounts)) return Toast.show('That file isn\'t a Rounds backup');
-    const ok = await confirmBox(`This backup is from ${data.exportedAt ? fmtDateTime(data.exportedAt) : 'an unknown date'} and has ${plural(st.accounts.length, 'account')}, ${plural((st.visits || []).length, 'visit')} and ${plural((st.notes || []).length, 'note')}.\n\nRestoring replaces everything on this device.`, { ok: 'Restore', danger: true, title: 'Restore backup?' });
+    const ok = await confirmBox(`This backup is from ${data.exportedAt ? fmtDateTime(data.exportedAt) : 'an unknown date'} and has ${plural(st.accounts.length, 'account')}, ${plural((st.visits || []).length, 'visit')} and ${plural((st.notes || []).length, 'note')}.\n\nRestoring replaces everything on this device${Sync.on ? ', and sync will update your other devices to match' : ''}.`, { ok: 'Restore', danger: true, title: 'Restore backup?' });
     if (!ok) return;
     await Store.replace(st);
     applyTheme();

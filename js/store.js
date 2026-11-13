@@ -12,18 +12,46 @@ const Store = (() => {
       r.onerror = () => rej(r.error);
     });
   }
-  function idbGet() {
+  function idbGet(key = KEY) {
     return new Promise((res, rej) => {
-      const t = db.transaction(OS, 'readonly').objectStore(OS).get(KEY);
+      const t = db.transaction(OS, 'readonly').objectStore(OS).get(key);
       t.onsuccess = () => res(t.result); t.onerror = () => rej(t.error);
     });
   }
-  function idbPut(v) {
+  function idbPut(v, key = KEY) {
     return new Promise((res, rej) => {
       const tx = db.transaction(OS, 'readwrite');
-      tx.objectStore(OS).put(v, KEY);
+      tx.objectStore(OS).put(v, key);
       tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
     });
+  }
+  /* Change stamps: every record gets _mt (last modified time) whenever its contents change.
+     Sync uses these to decide which edit is newer when two devices change the same thing. */
+  const RECORD_LISTS = ['accounts', 'notes', 'priorities', 'visits', 'opportunities', 'routes', 'products'];
+  let sigs = new Map();
+  function eachRecord(s, fn) {
+    for (const k of RECORD_LISTS) for (const r of s[k] || []) fn(k, r);
+    for (const k of ['tags', 'reps']) for (const r of s.settings?.[k] || []) fn('settings.' + k, r);
+  }
+  function buildSigs(s) {
+    sigs = new Map();
+    eachRecord(s, (k, r) => sigs.set(k + ':' + r.id, stableStr(r)));
+    if (s.settings) sigs.set('settings', stableStr({ ...s.settings, tags: null, reps: null }));
+  }
+  function stamp(s) {
+    const now = new Date().toISOString(), next = new Map();
+    let changed = false;
+    eachRecord(s, (k, r) => {
+      const key = k + ':' + r.id, sig = stableStr(r);
+      if (sigs.get(key) !== sig) { r._mt = now; changed = true; }
+      next.set(key, sig);
+    });
+    const settingsSig = stableStr({ ...s.settings, tags: null, reps: null });
+    if (sigs.get('settings') !== settingsSig) { s.settings._mt = now; changed = true; }
+    next.set('settings', settingsSig);
+    if (next.size !== sigs.size) changed = true; // something was deleted
+    sigs = next;
+    return changed;
   }
   function defaults() {
     return {
@@ -97,29 +125,45 @@ const Store = (() => {
     state: null,
     fallback: false,
     persisted: false,
+    rev: 0,            // bumps on every local change (sync uses it to spot edits made mid-sync)
     async load() {
       try {
         db = await openDB();
         const raw = await idbGet();
         this.state = migrate(raw);
+        buildSigs(raw ? raw : {});
+        stamp(this.state);
         if (!raw || raw.catalogVersion !== CATALOG_VERSION) await idbPut(this.state);
       } catch (e) {
         console.warn('IndexedDB unavailable, using localStorage', e);
         this.fallback = true;
         let s = null; try { s = JSON.parse(localStorage.getItem(LS_KEY)); } catch {}
         this.state = migrate(s);
+        buildSigs(this.state);
       }
       try { if (navigator.storage?.persist) this.persisted = await navigator.storage.persist(); } catch {}
     },
     save() { clearTimeout(timer); timer = setTimeout(() => this.flush(), 120); },
     async flush() {
       clearTimeout(timer);
+      const changed = stamp(this.state);
+      if (changed) { this.rev++; if (typeof Sync !== 'undefined') Sync.changed(); }
       try {
         if (this.fallback) localStorage.setItem(LS_KEY, JSON.stringify(this.state));
         else await idbPut(this.state);
       } catch (e) { console.error(e); Toast.show('Could not save! ' + e.message); }
     },
+    /* local replacement (restore, erase): counts as a change on this device */
     async replace(s) { this.state = migrate(s); await this.flush(); },
+    /* data that came from sync: not a local edit, so don't re-stamp it */
+    async applySynced(s) {
+      this.state = migrate(s);
+      buildSigs(this.state);
+      stamp(this.state); // migrate may have added catalog changes
+      try { if (this.fallback) localStorage.setItem(LS_KEY, JSON.stringify(this.state)); else await idbPut(this.state); } catch (e) { console.error(e); }
+    },
+    async kvGet(key) { if (this.fallback) { try { return JSON.parse(localStorage.getItem('rounds-kv-' + key)); } catch { return null; } } return idbGet(key); },
+    async kvPut(key, v) { if (this.fallback) { localStorage.setItem('rounds-kv-' + key, JSON.stringify(v)); return; } return idbPut(v, key); },
     defaults,
   };
 })();
@@ -219,3 +263,10 @@ const Data = {
 };
 
 function commit() { Store.save(); App.refresh(); }
+
+/* JSON with sorted keys, ignoring _mt stamps, so equal data always compares equal */
+function stableStr(v) {
+  if (Array.isArray(v)) return '[' + v.map(stableStr).join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).filter((k) => k !== '_mt' && v[k] !== undefined).sort().map((k) => JSON.stringify(k) + ':' + stableStr(v[k])).join(',') + '}';
+  return JSON.stringify(v === undefined ? null : v);
+}

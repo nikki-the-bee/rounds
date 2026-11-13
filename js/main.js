@@ -138,10 +138,11 @@ const ACT = {
   },
 
   async addPlacements(el) {
-    const a = findAcc(el);
+    let a = findAcc(el);
     const exclude = new Map(a.placements.map((pl) => [pl.productId, 'carried']));
     const ids = await Picker.products({ title: `Products at ${a.name}`, exclude });
     if (!ids.length) return;
+    a = Data.account(a.id); if (!a) return;
     const now = new Date().toISOString();
     const added = ids.map((pid) => ({ id: uid(), productId: pid, addedAt: now, since: '' }));
     a.placements.push(...added);
@@ -157,11 +158,12 @@ const ACT = {
   },
 
   async addOpps(el) {
-    const a = findAcc(el); if (!a) return;
+    let a = findAcc(el); if (!a) return;
     const exclude = new Map(a.placements.map((pl) => [pl.productId, 'carried']));
     Data.s.opportunities.filter((o) => o.accountId === a.id && o.status === 'open').forEach((o) => exclude.set(o.productId, 'pitching'));
     const ids = await Picker.products({ title: `Pitching at ${a.name}`, exclude });
     if (!ids.length) return;
+    a = Data.account(a.id); if (!a) return;
     const now = new Date().toISOString();
     ids.forEach((pid) => Data.s.opportunities.push({ id: uid(), accountId: a.id, productId: pid, status: 'open', note: '', createdAt: now, closedAt: null }));
     commit();
@@ -295,7 +297,8 @@ const ACT = {
     const uses = Data.s.accounts.filter((a) => a.placements.some((pl) => pl.productId === p.id)).length;
     if (!(await confirmBox(`Delete ${Data.productLabel(p, true)} from your product list?${uses ? `\n\nIt will also be removed from ${plural(uses, 'account')} that carry it.` : ''}`, { ok: 'Delete', danger: true }))) return;
     const s = Data.s;
-    if (p.builtin) p.hidden = true; // built-in products come back on update, so hide instead
+    const cur = Data.product(p.id) || p;
+    if (cur.builtin) cur.hidden = true; // built-in products come back on update, so hide instead
     else s.products = s.products.filter((x) => x.id !== p.id);
     s.accounts.forEach((a) => (a.placements = a.placements.filter((pl) => pl.productId !== p.id)));
     s.opportunities = s.opportunities.filter((o) => o.productId !== p.id);
@@ -306,12 +309,19 @@ const ACT = {
   editTypes() { Forms.types(); },
   backupNow() { IO.backup(); },
   exportSheet() { IO.exportSheet(); },
+  syncSetup() { Forms.syncSetup(); },
+  syncNow() { Sync.run({ manual: true }); },
+  async syncDisconnect() {
+    if (!(await confirmBox('Turn off sync on this device? Your data stays on this device and in your repository; this device just stops syncing. You\'ll need the access key to turn it back on.', { ok: 'Turn off' }))) return;
+    await Sync.disconnect(); App.refresh(); Toast.show('Sync turned off on this device');
+  },
   restoreFile() { $('#fileRestore').click(); },
   importFile() { $('#fileImport').click(); },
   downloadTemplate() { IO.template(); },
   async eraseAll() {
     if (!(await confirmBox('Erase every account, note, visit, priority and product on this device? This cannot be undone. Back up first if you might want any of it.', { ok: 'Erase everything', danger: true, title: 'Erase all data?' }))) return;
     if (!(await confirmBox('Really erase everything?', { ok: 'Yes, erase', danger: true, title: 'Last check' }))) return;
+    if (Sync.on) await Sync.disconnect(); // so erasing here never erases your other devices
     await Store.replace(Store.defaults());
     applyTheme(); location.hash = '#/visits'; App.refresh();
   },
@@ -389,7 +399,10 @@ document.addEventListener('keydown', (e) => {
 });
 window.addEventListener('popstate', () => { Modal.onPop(); });
 window.addEventListener('hashchange', () => { App.navDepth++; Toast.hide(); App.render(false); });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') Store.flush(); else if (!Modal.stack.length) App.refresh(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { Store.flush(); if (Sync.on && Sync.timer) Sync.run(); }
+  else { if (!Modal.stack.length) App.refresh(); if (Sync.on && (!Sync.cfg.lastAt || Date.now() - new Date(Sync.cfg.lastAt) > 20000)) Sync.run(); }
+});
 
 /* ---------- Boot ---------- */
 (async function init() {
@@ -397,11 +410,15 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
   $('#back').innerHTML = icon('back');
   $('#fab').innerHTML = icon('plus');
   UI.load();
+  Sync.load();
   await Store.load();
   applyTheme();
   if (history.state?.modal) history.replaceState(null, '');
   if (!location.hash) location.replace('#/visits');
   App.render();
+  if (Sync.on) setTimeout(() => Sync.run(), 300);
+  window.addEventListener('online', () => Sync.run());
+  window.addEventListener('offline', () => { if (Sync.on) Sync.setState('offline'); });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
       reg.addEventListener('updatefound', () => {

@@ -28,6 +28,8 @@ function emptyStart() {
     </div></div>`;
 }
 function backupBanner() {
+  if (Sync.on && Sync.state === 'error') return `<div class="banner" data-act="go" data-href="#/more">${icon('route')}<div><b>Sync isn't working</b><div class="small muted">${esc(Sync.error)} Tap to fix.</div></div></div>`;
+  if (Sync.on) return ''; // synced data is already backed up in your private repository
   const s = Data.s;
   if (!s.accounts.length) return '';
   const lb = s.settings.lastBackup;
@@ -422,6 +424,7 @@ const Pages = {
       ${stat(placedMonth, 'New placements this month')}${stat(wonMonth, 'Opportunities won this month')}${stat(openOpps, 'Open opportunities')}
     </div></div>
 
+    ${this.syncCard()}
     <div class="card"><h2>Organize</h2>
       <div class="setting"><div class="row-main"><div class="row-title">Routes</div><div class="row-sub">${plural(s.routes.length, 'route')}. Group accounts by part of town and move them around.</div></div><a class="btn small" href="#/routes">Manage</a></div>
       <div class="setting"><div class="row-main"><div class="row-title">Tags</div><div class="row-sub">${plural(Data.tags().length, 'tag')}. Labels like "My connection" or "Chopping Block".</div></div><a class="btn small" href="#/tags">Manage</a></div>
@@ -450,6 +453,26 @@ const Pages = {
     return { title: 'More', tab: 'more', html: h };
   },
 
+  syncCard() {
+    if (!Sync.on) {
+      return `<div class="card"><h2>Sync across devices</h2>
+        <p class="small muted" style="margin:0 0 12px">Keep your phone and computer in step automatically, using your private GitHub repository. Set it up once on each device.</p>
+        <button class="btn primary block" data-act="syncSetup">${icon('route')} Set up sync on this device</button></div>`;
+    }
+    const c = Sync.cfg;
+    const when = c.lastAt ? (daysBetween(c.lastAt) === 0 ? 'today at ' + fmtTime(c.lastAt) : fmtDateTime(c.lastAt)) : 'not yet';
+    const status = {
+      syncing: '<span class="good">Syncing…</span>',
+      offline: 'Offline. Changes will sync when you\'re back online.',
+      error: `<span class="red">Sync problem: ${esc(Sync.error)}</span>`,
+      idle: `Last synced ${when}`,
+    }[Sync.state] || `Last synced ${when}`;
+    return `<div class="card"><h2>Sync across devices</h2>
+      <div class="setting"><div class="row-main"><div class="row-title">${status}</div><div class="row-sub">This device: ${esc(c.device)} · ${esc(c.repo)}</div></div>
+        <button class="btn small primary" data-act="syncNow" ${Sync.state === 'syncing' ? 'disabled' : ''}>Sync now</button></div>
+      <div class="setting"><div class="row-main"><div class="row-sub">Changes sync automatically a few seconds after you make them, and when you open the app.</div></div></div>
+      <div class="toolbar" style="margin:8px 0 0">${Sync.state === 'error' ? `<button class="btn small" data-act="syncSetup">Update access key</button>` : ''}<span class="spacer"></span><button class="btn small ghost danger" data-act="syncDisconnect">Turn off on this device</button></div></div>`;
+  },
   /* ====================== ROUTES ====================== */
   routes() {
     const routes = Data.routesSorted();
