@@ -60,6 +60,19 @@ function norm(s) { return String(s ?? '').trim().toLowerCase(); }
 function plural(n, w, p) { return `${n} ${n === 1 ? w : (p || w + 's')}`; }
 function telHref(p) { return 'tel:' + String(p).replace(/[^\d+]/g, ''); }
 function smsHref(p) { return 'sms:' + String(p).replace(/[^\d+]/g, ''); }
+/* Email links. With the "outlook" setting: Android opens the Outlook app directly (falls back to
+   Outlook on the web if the app isn't installed), iPhone uses Outlook's link, computers open Outlook on the web. */
+function mailAttrs(email) {
+  const mode = (typeof Store !== 'undefined' && Store.state?.settings?.emailApp) || 'outlook';
+  const e = String(email || '').trim();
+  const web = 'https://outlook.office.com/mail/deeplink/compose?to=' + encodeURIComponent(e);
+  if (mode === 'default') return `href="mailto:${esc(e)}"`;
+  if (mode === 'outlookweb') return `href="${esc(web)}" target="_blank" rel="noopener"`;
+  const ua = navigator.userAgent;
+  if (/Android/i.test(ua)) return `href="${esc(`intent:${e}#Intent;scheme=mailto;package=com.microsoft.office.outlook;S.browser_fallback_url=${encodeURIComponent(web)};end`)}"`;
+  if (/iPhone|iPad/i.test(ua)) return `href="${esc('ms-outlook://compose?to=' + encodeURIComponent(e))}"`;
+  return `href="${esc(web)}" target="_blank" rel="noopener"`;
+}
 function mapHref(a) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(a); }
 function sortBy(arr, fn) { return arr.slice().sort((a, b) => { const x = fn(a), y = fn(b); return x < y ? -1 : x > y ? 1 : 0; }); }
 function words(q) { return norm(q).split(/\s+/).filter(Boolean); }

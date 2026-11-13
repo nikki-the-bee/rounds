@@ -82,10 +82,12 @@ const Forms = {
     Modal.open(formSheet('contact', isNew ? 'Add contact' : 'Edit contact', body, { id: c.id || '', del: isNew ? '' : 'deleteContact', extra: `data-acc="${esc(accId || '')}"` }));
   },
 
-  note({ accountId, note } = {}) {
+  note({ accountId, repId, note } = {}) {
     const isNew = !note; note = note || {};
-    const body = `${isNew ? acctField(accountId) : `<input type="hidden" name="accountId" value="${note.accountId}">`}
-      ${!isNew ? `<p class="hint" style="margin-top:0">${esc(Data.account(note.accountId)?.name || '')} · added ${fmtDateTime(note.createdAt)}${note.updatedAt && note.updatedAt !== note.createdAt ? ` · edited ${fmtDateTime(note.updatedAt)}` : ''}</p>` : ''}
+    repId = repId || note.repId || '';
+    const about = repId ? `Rep: ${Data.rep(repId)?.name || ''}` : Data.account(note.accountId)?.name || '';
+    const body = `${repId ? `<input type="hidden" name="repId" value="${esc(repId)}">${isNew ? `<p class="hint" style="margin-top:0">${esc(about)}</p>` : ''}` : isNew ? acctField(accountId) : `<input type="hidden" name="accountId" value="${note.accountId}">`}
+      ${!isNew ? `<p class="hint" style="margin-top:0">${esc(about)} · added ${fmtDateTime(note.createdAt)}${note.updatedAt && note.updatedAt !== note.createdAt ? ` · edited ${fmtDateTime(note.updatedAt)}` : ''}</p>` : ''}
       <label class="field"><span>Note</span><textarea name="text" autofocus rows="6" placeholder="What happened, what you learned…">${esc(note.text)}</textarea></label>
       ${isNew ? '<p class="hint">Today\'s date and time are saved with the note.</p>' : ''}`;
     Modal.open(formSheet('note', isNew ? 'New note' : 'Edit note', body, { id: note.id || '', del: isNew ? '' : 'deleteNote' }));
@@ -162,7 +164,10 @@ const Forms = {
     return new Promise((res) => {
       const isNew = !r; r = r || {};
       const n = r.id ? Data.s.accounts.filter((a) => a.repId === r.id).length : 0;
-      const body = `<label class="field"><span>Rep's name</span><input type="text" name="name" value="${esc(r.name)}" autofocus autocomplete="off" placeholder="First and last name"></label>
+      const body = `<label class="field"><span>Rep's name *</span><input type="text" name="name" value="${esc(r.name)}" ${isNew ? 'autofocus' : ''} autocomplete="off" placeholder="First and last name"></label>
+        <label class="field"><span>Title (optional)</span><input type="text" name="title" value="${esc(r.title)}" autocomplete="off" placeholder="Sales Rep, Key Account Manager…"></label>
+        <label class="field"><span>Phone</span><input type="tel" name="phone" value="${esc(r.phone)}" autocomplete="off"></label>
+        <label class="field"><span>Email</span><input type="email" name="email" value="${esc(r.email)}" autocomplete="off"></label>
         ${isNew ? `<p class="hint">Already listed: ${Data.reps().map((x) => esc(x.name)).join(', ') || 'nobody yet'}.</p>` : `<p class="hint">Assigned to ${plural(n, 'account')}. Renaming updates all of them.</p>`}`;
       Modal.open(formSheet('rep', isNew ? 'New Breakthru rep' : 'Edit rep', body, { id: r.id || '', del: isNew ? '' : 'deleteRep' }), { onClose: res });
     });
@@ -243,12 +248,13 @@ const FORMS = {
     if (!id && !form.dataset.acc) Toast.show(`Contact added to ${a.name}`, [{ label: 'Open', fn: () => (location.hash = '#/account/' + a.id) }]);
   },
   note(form, fd) {
-    const text = val(fd, 'text'), accId = fd.get('accountId');
-    if (!accId) return Toast.show('Choose an account');
+    const text = val(fd, 'text'), accId = fd.get('accountId') || '', repId = fd.get('repId') || '';
+    if (!accId && !repId) return Toast.show('Choose an account');
     if (!text) return Toast.show('The note is empty');
     const id = form.dataset.id, now = new Date().toISOString();
     if (id) { const n = Data.s.notes.find((x) => x.id === id); if (n.text !== text) { n.text = text; n.updatedAt = now; } }
-    else Data.s.notes.push({ id: uid(), accountId: accId, text, createdAt: now, updatedAt: now });
+    else Data.s.notes.push({ id: uid(), accountId: accId, repId, text, createdAt: now, updatedAt: now });
+    if (repId) { Store.save(); Modal.close(); App.refresh(); return; }
     Store.save(); Modal.close(); App.refresh();
     if (!id && !location.hash.includes(accId)) Toast.show(`Note added to ${Data.account(accId)?.name}`, [{ label: 'Open', fn: () => (location.hash = '#/account/' + accId) }]);
   },
@@ -320,12 +326,16 @@ const FORMS = {
       const r = Data.rep(id);
       if (!(await confirmBox(`"${same.name}" already exists. Merge "${r.name}" into it? Every account assigned to "${r.name}" will move to "${same.name}".`, { ok: 'Merge', title: 'Merge reps?' }))) return;
       Data.s.accounts.forEach((a) => { if (a.repId === id) a.repId = same.id; });
+      Data.s.notes.forEach((n) => { if (n.repId === id) n.repId = same.id; });
+      for (const k of ['title', 'phone', 'email']) if (!same[k] && r[k]) same[k] = r[k];
       Data.s.settings.reps = reps.filter((x) => x.id !== id);
-      Store.save(); Modal.close(same.id); App.refresh(); Toast.show('Reps merged');
+      Store.save(); await Modal.close(same.id); Toast.show('Reps merged');
+      if (location.hash === '#/rep/' + id) location.replace('#/rep/' + same.id); else App.refresh();
       return;
     }
     let r;
-    if (id) { r = Data.rep(id); r.name = name; } else { r = { id: uid(), name }; reps.push(r); }
+    const info = { name, title: val(fd, 'title'), phone: val(fd, 'phone'), email: val(fd, 'email') };
+    if (id) { r = Data.rep(id); Object.assign(r, info); } else { r = { id: uid(), ...info }; reps.push(r); }
     Store.save(); Modal.close(r.id); App.refresh();
   },
   tag(form, fd) {

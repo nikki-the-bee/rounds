@@ -11,6 +11,7 @@ const ROUTES = [
   [/^#\/routes$/, () => Pages.routes()],
   [/^#\/tags$/, () => Pages.tags()],
   [/^#\/reps$/, () => Pages.reps()],
+  [/^#\/rep\/([\w-]+)$/, (id) => Pages.rep(id)],
   [/^#\/route\/([\w-]+)$/, (id) => Pages.route(id)],
 ];
 
@@ -248,16 +249,29 @@ const ACT = {
     if (existing) { existing.checked = true; return; }
     el.insertAdjacentHTML('beforebegin', tagChip(t, true));
   },
-  newRep() { Forms.rep(); },
+  async newRep() { const id = await Forms.rep(); if (id && Data.rep(id)) location.hash = '#/rep/' + id; },
+  addRepNote(el) { Forms.note({ repId: el.dataset.id }); },
+  async repAddAccounts(el) {
+    const r = Data.rep(el.dataset.id);
+    const ids = await Picker.account({ title: `Assign to ${r.name}`, multi: true, exclude: Data.s.accounts.filter((a) => a.repId === r.id).map((a) => a.id) });
+    if (!ids?.length) return;
+    const moved = ids.filter((id) => Data.account(id).repId && Data.account(id).repId !== r.id).length;
+    ids.forEach((id) => (Data.account(id).repId = r.id));
+    commit();
+    Toast.show(`${plural(ids.length, 'account')} assigned to ${r.name}${moved ? ` (${moved} moved from another rep)` : ''}`);
+  },
   editRep(el) { Forms.rep(Data.rep(el.dataset.id)); },
   repAccounts(el) { ACT.clearFilters(); UI.accounts.rep = el.dataset.id; UI.accounts.showFilters = true; UI.save(); location.hash = '#/accounts'; },
   async deleteRep(el) {
     const r = Data.rep(el.dataset.id);
     const n = Data.s.accounts.filter((a) => a.repId === r.id).length;
-    if (!(await confirmBox(`Remove ${r.name} from your rep list?${n ? ` ${plural(n, 'account')} will be left with no rep.` : ''}`, { ok: 'Remove', danger: true }))) return;
+    const nn = Data.s.notes.filter((x) => x.repId === r.id).length;
+    if (!(await confirmBox(`Remove ${r.name} from your rep list?${n ? ` ${plural(n, 'account')} will be left with no rep.` : ''}${nn ? ` Their ${plural(nn, 'note')} will be deleted.` : ''}`, { ok: 'Remove', danger: true }))) return;
     Data.s.settings.reps = Data.s.settings.reps.filter((x) => x.id !== r.id);
     Data.s.accounts.forEach((a) => { if (a.repId === r.id) a.repId = ''; });
-    Modal.close(); commit();
+    Data.s.notes = Data.s.notes.filter((x) => x.repId !== r.id);
+    await Modal.close(); Store.save();
+    if (location.hash.startsWith('#/rep/')) location.replace('#/reps'); else App.refresh();
   },
   editTag(el) { Forms.tag(Data.tag(el.dataset.id)); },
   tagAccounts(el) { ACT.clearFilters(); UI.accounts.tag = el.dataset.id; UI.save(); location.hash = '#/accounts'; },
@@ -337,6 +351,7 @@ const CHG = {
   pickProdToggle(el) { const s = Picker._prod.sel; el.checked ? s.add(el.value) : s.delete(el.value); Picker.updateProdBtn(); },
   pickAcctToggle(el) { const s = Picker._acct.sel; el.checked ? s.add(el.value) : s.delete(el.value); const b = $('#pickAcctDoneBtn'); if (b) b.textContent = s.size ? `Add ${s.size} selected` : 'Add selected'; },
   moveRoute(el) { const a = Data.account(el.dataset.id); a.routeId = el.value; commit(); Toast.show(`${a.name} moved to ${Data.routeName(el.value)}`); },
+  emailApp(el) { Data.s.settings.emailApp = el.value; commit(); Toast.show('Email buttons updated'); },
   defaultFreq(el) { Data.s.settings.defaultFreq = Number(el.value); commit(); },
   fileImport(el) { const f = el.files[0]; el.value = ''; if (f) IO.importFile(f); },
   fileRestore(el) { const f = el.files[0]; el.value = ''; if (f) IO.restore(f); },

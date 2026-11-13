@@ -233,7 +233,7 @@ const Pages = {
       </div>
       ${a.address ? `<a class="addr" href="${mapHref(a.address)}" target="_blank" rel="noopener">${icon('map')}<span>${esc(a.address)}</span></a>` : ''}
       <div class="line">${statusDot(st)} ${esc(Data.statusText(st))}${st.last ? ` (${fmtDate(st.last.at)})` : ''} · every ${st.freq} days</div>
-      ${Data.repName(a) ? `<div class="line">${icon('user')} Breakthru rep: ${esc(Data.repName(a))}</div>` : ''}
+      ${Data.repName(a) ? `<div class="line">${icon('user')} Breakthru rep:&nbsp;<a href="#/rep/${a.repId}">${esc(Data.repName(a))}</a></div>` : ''}
       <div class="action-row">
         <button class="btn primary" data-act="checkIn" data-id="${a.id}">${icon('check')}Check in</button>
         <button class="btn" data-act="addNote" data-acc="${a.id}">${icon('note')}Note</button>
@@ -252,7 +252,7 @@ const Pages = {
         </div>
         <div class="contact-actions">
           ${c.phone ? `<a class="icon-btn" href="${telHref(c.phone)}" aria-label="Call">${icon('phone')}</a><a class="icon-btn" href="${smsHref(c.phone)}" aria-label="Text">${icon('msg')}</a>` : ''}
-          ${c.email ? `<a class="icon-btn" href="mailto:${esc(c.email)}" aria-label="Email">${icon('mail')}</a>` : ''}
+          ${c.email ? `<a class="icon-btn" ${mailAttrs(c.email)} aria-label="Email">${icon('mail')}</a>` : ''}
         </div></div>`).join('') : '<div class="muted small">No contacts yet.</div>'}
     </div>`;
 
@@ -425,6 +425,8 @@ const Pages = {
       <div class="setting"><div class="row-main"><div class="row-title">Breakthru reps</div><div class="row-sub">${plural(Data.reps().length, 'rep')}. Rename or merge to fix spellings everywhere.</div></div><a class="btn small" href="#/reps">Manage</a></div>
       <div class="setting"><div class="row-main"><div class="row-title">Default visit frequency</div><div class="row-sub">Used for accounts without their own target</div></div>
         <select style="width:auto" data-chg="defaultFreq">${FREQ_PRESETS.map(([d, l]) => `<option value="${d}" ${Number(set.defaultFreq) === d ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div class="setting"><div class="row-main"><div class="row-title">Email with</div><div class="row-sub">What the email buttons open</div></div>
+        <select style="width:auto;max-width:55%" data-chg="emailApp">${[['outlook', 'Outlook (app on phone, web on computer)'], ['outlookweb', 'Outlook on the web'], ['default', "Device's default email app"]].map(([v, l]) => `<option value="${v}" ${(set.emailApp || 'outlook') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="setting"><div class="row-main"><div class="row-title">Account types & contact roles</div><div class="row-sub">Edit the suggestion lists</div></div><button class="btn small" data-act="editTypes">Edit</button></div>
       <div class="setting"><div class="row-main"><div class="row-title">Archived accounts</div><div class="row-sub">${plural(archived, 'account')} archived</div></div><button class="btn small" data-act="showArchived">View</button></div>
       <div class="setting"><div class="row-main"><div class="row-title">Visit history</div><div class="row-sub">Every check-in, newest first</div></div><a class="btn small" href="#/visits/log">Open</a></div>
@@ -476,13 +478,56 @@ const Pages = {
   reps() {
     const reps = Data.reps();
     const count = (id) => Data.s.accounts.filter((a) => a.repId === id).length;
-    let h = `<p class="small muted" style="margin:0 4px 10px">Each rep is saved once and picked from a list on each account, so spellings stay consistent. Renaming a rep updates every account. Renaming one rep to another's exact name merges them.</p>`;
-    h += reps.length ? `<div class="list">${reps.map((r) => `<div class="row" data-act="editRep" data-id="${r.id}">
+    let h = `<p class="small muted" style="margin:0 4px 10px">Each rep is saved once and picked from a list on each account, so spellings stay consistent. Tap a rep for their contact info, accounts, priorities and notes.</p>`;
+    const prios = (id) => Data.s.priorities.filter((p) => !p.done && Data.account(p.accountId)?.repId === id).length;
+    h += reps.length ? `<div class="list">${reps.map((r) => `<div class="row" data-act="go" data-href="#/rep/${r.id}">
         <span class="icon-btn ghost" style="width:28px;height:28px">${icon('user')}</span>
-        <div class="row-main"><div class="row-title">${esc(r.name)}</div><div class="row-sub">${plural(count(r.id), 'account')}</div></div>
-        <button class="btn small" data-act="repAccounts" data-id="${r.id}">View</button>
+        <div class="row-main"><div class="row-title">${esc(r.name)} ${prios(r.id) ? `<span class="pill flag-pill">${icon('flag')}${prios(r.id)}</span>` : ''}</div><div class="row-sub">${esc([r.title, plural(count(r.id), 'account')].filter(Boolean).join(' · '))}</div></div>
+        ${r.phone ? `<a class="icon-btn" href="${telHref(r.phone)}" aria-label="Call">${icon('phone')}</a>` : ''}
       </div>`).join('')}</div>` : '<div class="empty">No reps yet.</div>';
     return { title: 'Breakthru reps', tab: 'more', back: true, html: h, actions: `<button class="btn small primary" data-act="newRep">${icon('plus')} New</button>` };
+  },
+  rep(id) {
+    const r = Data.rep(id);
+    if (!r) return { title: 'Not found', back: true, tab: 'more', html: '<div class="empty">This rep no longer exists.</div>' };
+    const s = Data.s, ua = UI.acct, lm = Data.lastVisitMap();
+    const accts = sortBy(s.accounts.filter((a) => a.repId === r.id && !a.archived), (a) => norm(a.name));
+    const archived = s.accounts.filter((a) => a.repId === r.id && a.archived).length;
+    const head = `<div class="card">
+      <div class="contact" style="border-top:0;padding-top:0">
+        <div class="contact-main" data-act="editRep" data-id="${r.id}">
+          <div class="row-title" style="font-size:18px">${esc(r.name)}</div>
+          <div class="row-sub">${esc(['Breakthru', r.title].filter(Boolean).join(' · '))}</div>
+          ${r.phone ? `<div class="row-sub">${esc(r.phone)}</div>` : ''}
+          ${r.email ? `<div class="row-sub">${esc(r.email)}</div>` : ''}
+          ${!r.phone && !r.email ? `<div class="row-sub"><button class="link-btn" style="padding:4px 0" data-act="editRep" data-id="${r.id}">+ Add phone and email</button></div>` : ''}
+        </div>
+        <div class="contact-actions">
+          ${r.phone ? `<a class="icon-btn" href="${telHref(r.phone)}" aria-label="Call">${icon('phone')}</a><a class="icon-btn" href="${smsHref(r.phone)}" aria-label="Text">${icon('msg')}</a>` : ''}
+          ${r.email ? `<a class="icon-btn" ${mailAttrs(r.email)} aria-label="Email">${icon('mail')}</a>` : ''}
+        </div>
+      </div></div>`;
+    // priorities on this rep's accounts
+    const openP = Data.sortPriorities(s.priorities.filter((p) => !p.done && accts.some((a) => a.id === p.accountId)));
+    const prios = `<div class="card"><h2>Priorities on their accounts ${openP.length ? `<span class="count">${openP.length}</span>` : ''}</h2>
+      ${openP.length ? openP.map((p) => this.prioRow(p, true)).join('') : '<div class="muted small">No open priorities on these accounts.</div>'}</div>`;
+    // notes about the rep
+    const notesAll = sortBy(s.notes.filter((n) => n.repId === r.id), (n) => n.createdAt).reverse();
+    const shown = ua.notesAll ? notesAll : notesAll.slice(0, 5);
+    const notes = `<div class="card"><h2>Notes ${notesAll.length ? `<span class="count">${notesAll.length}</span>` : ''}<span class="spacer"></span><button class="btn small" data-act="addRepNote" data-id="${r.id}">${icon('plus')} Add</button></h2>
+      ${shown.length ? shown.map((n) => `<div class="item" data-act="editNote" data-id="${n.id}"><div class="item-head">${fmtDateTime(n.createdAt)}${n.updatedAt && n.updatedAt !== n.createdAt ? ` · edited ${fmtDate(n.updatedAt)}` : ''}</div><div class="pre">${esc(n.text)}</div></div>`).join('') : '<div class="muted small">No notes yet.</div>'}
+      ${notesAll.length > 5 ? `<button class="link-btn" data-act="acctToggle" data-key="notesAll">${ua.notesAll ? 'Show fewer' : `Show all ${notesAll.length} notes`}</button>` : ''}</div>`;
+    // accounts
+    const list = `<div class="card" style="padding-bottom:4px"><h2>Accounts <span class="count">${accts.length}</span><span class="spacer"></span><button class="btn small" data-act="repAddAccounts" data-id="${r.id}">${icon('plus')} Assign</button></h2>
+      ${accts.length ? accts.map((a) => { const st = Data.status(a, lm); const op = Data.openPriorities(a.id).length;
+        return `<div class="contact" data-act="openAccount" data-id="${a.id}" style="cursor:pointer">${statusDot(st)}<div class="contact-main"><div class="row-title">${esc(a.name)} ${op ? `<span class="pill flag-pill">${icon('flag')}${op}</span>` : ''}</div><div class="row-sub">${esc([Data.route(a.routeId)?.name, Data.statusText(st)].filter(Boolean).join(' · '))}</div></div></div>`; }).join('') : '<div class="muted small" style="padding-bottom:10px">No accounts assigned yet.</div>'}
+      ${archived ? `<div class="small muted" style="padding:6px 0 10px">+ ${plural(archived, 'archived account')}</div>` : ''}</div>`;
+    return {
+      title: r.name, back: true, tab: 'more',
+      actions: `<button class="btn small" data-act="editRep" data-id="${r.id}">${icon('edit')} Edit</button>`,
+      html: head + `<div class="acct-grid"><div>${prios}${notes}</div><div>${list}</div></div>
+        <div class="danger-zone"><button class="btn danger" data-act="deleteRep" data-id="${r.id}">${icon('trash')} Remove rep</button></div>`,
+    };
   },
   route(id) {
     const r = id === 'none' ? null : Data.route(id);

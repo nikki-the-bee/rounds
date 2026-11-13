@@ -36,6 +36,7 @@ const Store = (() => {
         accountTypes: ['Bar', 'Restaurant', 'Country Club', 'Hotel', 'Nightclub', 'Brewery / Taproom', 'Event Venue', 'Golf Course', 'Casino', 'Other'],
         tags: [],
         reps: [],
+        emailApp: 'outlook',
         roles: ['Owner', 'General Manager', 'Bar Manager', 'Beverage Director', 'Bartender', 'Chef', 'Purchasing', 'F&B Director'],
       },
       routes: [], products: [], accounts: [], notes: [], priorities: [], visits: [], opportunities: [],

@@ -267,7 +267,9 @@ IO.exportSheet = async function () {
     ['• The Notes, Visits, Priorities and Products Carried tabs are for reference only. Changes there are not imported.'],
     [''], [`Exported ${new Date().toLocaleString()}`]]);
   help['!cols'] = [{ wch: 120 }];
-  const notes = XLSX.utils.aoa_to_sheet([['Account', 'Date', 'Note'], ...sortBy(s.notes, (n) => n.createdAt).reverse().map((n) => [name(n.accountId), fmtDateTime(n.createdAt), n.text])]);
+  const notes = XLSX.utils.aoa_to_sheet([['Account', 'Date', 'Note'], ...sortBy(s.notes, (n) => n.createdAt).reverse().map((n) => [n.repId ? `Rep: ${Data.rep(n.repId)?.name || '?'}` : name(n.accountId), fmtDateTime(n.createdAt), n.text])]);
+  const repsS = XLSX.utils.aoa_to_sheet([['Account', 'Title', 'Phone', 'Email', 'Accounts'], ...Data.reps().map((r) => [r.name, r.title || '', r.phone || '', r.email || '', s.accounts.filter((a) => a.repId === r.id && !a.archived).map((a) => a.name).join(', ')])]);
+  repsS['!cols'] = [22, 20, 14, 28, 90].map((wch) => ({ wch }));
   notes['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 90 }];
   const visits = XLSX.utils.aoa_to_sheet([['Account', 'Date', 'Note'], ...sortBy(s.visits, (v) => v.at).reverse().map((v) => [name(v.accountId), fmtDateTime(v.at), v.note || ''])]);
   visits['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 70 }];
@@ -282,6 +284,7 @@ IO.exportSheet = async function () {
   XLSX.utils.book_append_sheet(wb, acc, 'Accounts');
   XLSX.utils.book_append_sheet(wb, help, 'How to edit');
   XLSX.utils.book_append_sheet(wb, sum, 'Visit Status');
+  XLSX.utils.book_append_sheet(wb, repsS, 'Breakthru Reps');
   XLSX.utils.book_append_sheet(wb, notes, 'Notes');
   XLSX.utils.book_append_sheet(wb, visits, 'Visits');
   XLSX.utils.book_append_sheet(wb, prios, 'Priorities');
