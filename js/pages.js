@@ -422,7 +422,6 @@ const Pages = {
     <div class="card"><h2>Organize</h2>
       <div class="setting"><div class="row-main"><div class="row-title">Routes</div><div class="row-sub">${plural(s.routes.length, 'route')}. Group accounts by part of town and move them around.</div></div><a class="btn small" href="#/routes">Manage</a></div>
       <div class="setting"><div class="row-main"><div class="row-title">Tags</div><div class="row-sub">${plural(Data.tags().length, 'tag')}. Labels like "My connection" or "Chopping Block".</div></div><a class="btn small" href="#/tags">Manage</a></div>
-      <div class="setting"><div class="row-main"><div class="row-title">Breakthru reps</div><div class="row-sub">${plural(Data.reps().length, 'rep')}. Rename or merge to fix spellings everywhere.</div></div><a class="btn small" href="#/reps">Manage</a></div>
       <div class="setting"><div class="row-main"><div class="row-title">Default visit frequency</div><div class="row-sub">Used for accounts without their own target</div></div>
         <select style="width:auto" data-chg="defaultFreq">${FREQ_PRESETS.map(([d, l]) => `<option value="${d}" ${Number(set.defaultFreq) === d ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="setting"><div class="row-main"><div class="row-title">Email with</div><div class="row-sub">What the email buttons open</div></div>
@@ -485,11 +484,11 @@ const Pages = {
         <div class="row-main"><div class="row-title">${esc(r.name)} ${prios(r.id) ? `<span class="pill flag-pill">${icon('flag')}${prios(r.id)}</span>` : ''}</div><div class="row-sub">${esc([r.title, plural(count(r.id), 'account')].filter(Boolean).join(' · '))}</div></div>
         ${r.phone ? `<a class="icon-btn" href="${telHref(r.phone)}" aria-label="Call">${icon('phone')}</a>` : ''}
       </div>`).join('')}</div>` : '<div class="empty">No reps yet.</div>';
-    return { title: 'Breakthru reps', tab: 'more', back: true, html: h, actions: `<button class="btn small primary" data-act="newRep">${icon('plus')} New</button>` };
+    return { title: 'Breakthru reps', tab: 'reps', html: h, actions: `<button class="btn small primary" data-act="newRep">${icon('plus')} New</button>` };
   },
   rep(id) {
     const r = Data.rep(id);
-    if (!r) return { title: 'Not found', back: true, tab: 'more', html: '<div class="empty">This rep no longer exists.</div>' };
+    if (!r) return { title: 'Not found', back: true, tab: 'reps', html: '<div class="empty">This rep no longer exists.</div>' };
     const s = Data.s, ua = UI.acct, lm = Data.lastVisitMap();
     const accts = sortBy(s.accounts.filter((a) => a.repId === r.id && !a.archived), (a) => norm(a.name));
     const archived = s.accounts.filter((a) => a.repId === r.id && a.archived).length;
@@ -523,7 +522,7 @@ const Pages = {
         return `<div class="contact" data-act="openAccount" data-id="${a.id}" style="cursor:pointer">${statusDot(st)}<div class="contact-main"><div class="row-title">${esc(a.name)} ${op ? `<span class="pill flag-pill">${icon('flag')}${op}</span>` : ''}</div><div class="row-sub">${esc([Data.route(a.routeId)?.name, Data.statusText(st)].filter(Boolean).join(' · '))}</div></div></div>`; }).join('') : '<div class="muted small" style="padding-bottom:10px">No accounts assigned yet.</div>'}
       ${archived ? `<div class="small muted" style="padding:6px 0 10px">+ ${plural(archived, 'archived account')}</div>` : ''}</div>`;
     return {
-      title: r.name, back: true, tab: 'more',
+      title: r.name, back: true, tab: 'reps',
       actions: `<button class="btn small" data-act="editRep" data-id="${r.id}">${icon('edit')} Edit</button>`,
       html: head + `<div class="acct-grid"><div>${prios}${notes}</div><div>${list}</div></div>
         <div class="danger-zone"><button class="btn danger" data-act="deleteRep" data-id="${r.id}">${icon('trash')} Remove rep</button></div>`,
