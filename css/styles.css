@@ -10,6 +10,10 @@
 [data-theme=ruby]{--bg:#150b0f;--surface:#1f1116;--surface2:#2a171e;--border:#3d222b;--text:#f6e6ea;--muted:#bb919c;--accent:#ff5c7a;--accent-ink:#2a0710}
 [data-theme=violet]{--bg:#100d18;--surface:#181425;--surface2:#211b33;--border:#312848;--text:#ece8f7;--muted:#a49cbf;--accent:#a98bff;--accent-ink:#160d33}
 [data-theme=forest]{--bg:#0c130d;--surface:#131d14;--surface2:#1a281b;--border:#263b28;--text:#e6f1e6;--muted:#97b298;--accent:#7bd88f;--accent-ink:#082010}
+[data-theme=neon-pink]{--bg:#0b0614;--surface:#140b22;--surface2:#1d1030;--border:#3b1f5c;--text:#f7eaff;--muted:#b89ad8;--accent:#ff2bd6;--accent-ink:#1a0014;--ok:#39ff9f;--warn:#ffd23f;--danger:#ff3b6b}
+[data-theme=neon-cyan]{--bg:#03080d;--surface:#07121b;--surface2:#0c1c29;--border:#14394f;--text:#e2f8ff;--muted:#86afc4;--accent:#00e5ff;--accent-ink:#001419;--ok:#3dff8b;--warn:#ffe14d;--danger:#ff4d6d}
+[data-theme=neon-lime]{--bg:#060904;--surface:#0d1309;--surface2:#141c0f;--border:#28391b;--text:#efffe4;--muted:#a1bf8c;--accent:#b6ff1a;--accent-ink:#0d1400;--ok:#2dffb3;--warn:#ffd23f;--danger:#ff4f6d}
+[data-theme=neon-orange]{--bg:#0c0604;--surface:#170c07;--surface2:#21120a;--border:#432414;--text:#fff0e6;--muted:#c79e86;--accent:#ff7a1a;--accent-ink:#1f0b00;--ok:#3dff9a;--warn:#ffe03d;--danger:#ff3d6e}
 [data-theme=light]{--bg:#f3f5f8;--surface:#ffffff;--surface2:#eef2f6;--border:#d9e0e8;--text:#16202a;--muted:#5d6b7a;--accent:#1f6feb;--accent-ink:#ffffff;--ok:#16935b;--warn:#c27c00;--danger:#d64545;color-scheme:light}
 
 *{box-sizing:border-box}
@@ -283,3 +287,13 @@ select.mini{width:auto;max-width:62vw;flex:none;min-height:36px;height:36px;padd
   background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
 select.mini.on{border-color:var(--accent);color:var(--accent)}
 .mini-chip{height:36px;flex:none;font-weight:600}
+
+/* neon glow */
+[data-theme^=neon] #fab,[data-theme^=neon] .btn.primary,[data-theme^=neon] .chip.on,[data-theme^=neon] .check-btn.done{box-shadow:0 0 14px color-mix(in srgb,var(--accent) 55%,transparent),0 0 2px var(--accent)}
+[data-theme^=neon] .check-btn{box-shadow:0 0 10px color-mix(in srgb,var(--accent) 30%,transparent)}
+[data-theme^=neon] #nav a.active{text-shadow:0 0 10px var(--accent)}
+[data-theme^=neon] #nav a.active .ic{filter:drop-shadow(0 0 5px var(--accent))}
+[data-theme^=neon] .dot.st-overdue,[data-theme^=neon] .dot.st-due,[data-theme^=neon] .dot.st-ok{box-shadow:0 0 6px currentColor}
+[data-theme^=neon] .st-overdue{color:var(--danger)}[data-theme^=neon] .st-due{color:var(--warn)}[data-theme^=neon] .st-ok{color:var(--ok)}
+[data-theme^=neon] .card,[data-theme^=neon] .list{border-color:color-mix(in srgb,var(--accent) 22%,var(--border))}
+[data-theme^=neon] .theme.on{box-shadow:0 0 12px var(--accent)}

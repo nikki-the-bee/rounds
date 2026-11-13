@@ -21,6 +21,8 @@ const THEMES = [
   ['midnight', 'Midnight', '#0e141b', '#4ea1ff'], ['bourbon', 'Bourbon', '#15100b', '#e8a33d'],
   ['agave', 'Agave', '#0b1514', '#3cc6a8'], ['ruby', 'Ruby', '#150b0f', '#ff5c7a'],
   ['violet', 'Violet', '#100d18', '#a98bff'], ['forest', 'Forest', '#0c130d', '#7bd88f'],
+  ['neon-pink', 'Neon Pink', '#0b0614', '#ff2bd6'], ['neon-cyan', 'Neon Cyan', '#03080d', '#00e5ff'],
+  ['neon-lime', 'Neon Lime', '#060904', '#b6ff1a'], ['neon-orange', 'Neon Orange', '#0c0604', '#ff7a1a'],
   ['light', 'Light', '#f3f5f8', '#1f6feb'],
 ];
 
