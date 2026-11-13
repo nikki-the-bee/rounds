@@ -275,3 +275,11 @@ textarea{min-height:110px;resize:vertical}
 .tag-pick input:checked+span{background:var(--tc);border-color:var(--tc);color:#111}
 .row-tags{margin-top:4px;display:flex;flex-wrap:wrap;gap:4px}
 .row-tags .pill{font-size:11px;padding:0 7px}
+
+/* compact filter row (sideways scroll on phones) */
+.mini-row{align-items:center;margin-bottom:10px}
+select.mini{width:auto;max-width:62vw;flex:none;min-height:36px;height:36px;padding:0 30px 0 12px;border-radius:999px;font-size:14px;font-weight:600;background-color:var(--surface);
+  appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+select.mini.on{border-color:var(--accent);color:var(--accent)}
+.mini-chip{height:36px;flex:none;font-weight:600}

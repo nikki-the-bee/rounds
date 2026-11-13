@@ -73,15 +73,15 @@ const Pages = {
     if (routes.length) {
       h += `<div class="scroll-x"><button class="chip ${u.route === 'all' ? 'on' : ''}" data-act="visitRoute" data-val="all">All routes</button>${routes.map((r) => routeChip(r, u.route === r.id, 'visitRoute')).join('')}${hasUnrouted ? `<button class="chip ${u.route === 'none' ? 'on' : ''}" data-act="visitRoute" data-val="none">No route</button>` : ''}</div>`;
     }
-    h += `<div class="toolbar">
-      <select data-chg="visitSort" aria-label="Sort">
-        ${[['overdue', 'Most overdue first'], ['oldest', 'Least recently visited'], ['route', 'Group by route'], ['name', 'A–Z']].map(([v, l]) => `<option value="${v}" ${u.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
+    const tagSel = Data.tags().length ? `<select class="mini ${u.tag ? 'on' : ''}" data-chg="visitTag" aria-label="Tag"><option value="">All tags</option>${Data.tags().map((t) => `<option value="${t.id}" ${u.tag === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}<option value="none" ${u.tag === 'none' ? 'selected' : ''}>Untagged</option></select>` : '';
+    const repSel = Data.reps().length ? `<select class="mini ${u.rep ? 'on' : ''}" data-chg="visitRep" aria-label="Breakthru rep"><option value="">All reps</option>${Data.reps().map((r) => `<option value="${r.id}" ${u.rep === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}<option value="none" ${u.rep === 'none' ? 'selected' : ''}>No rep</option></select>` : '';
+    h += `<div class="scroll-x mini-row">
+      <select class="mini" data-chg="visitSort" aria-label="Sort">
+        ${[['overdue', 'Most overdue'], ['oldest', 'Least recent'], ['route', 'By route'], ['name', 'A–Z']].map(([v, l]) => `<option value="${v}" ${u.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
       </select>
-      ${Data.tags().length ? `<select data-chg="visitTag" aria-label="Tag" style="width:auto"><option value="">All tags</option>${Data.tags().map((t) => `<option value="${t.id}" ${u.tag === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}<option value="none" ${u.tag === 'none' ? 'selected' : ''}>Untagged</option></select>` : ''}
-      ${Data.reps().length ? `<select data-chg="visitRep" aria-label="Breakthru rep" style="width:auto"><option value="">All reps</option>${Data.reps().map((r) => `<option value="${r.id}" ${u.rep === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}<option value="none" ${u.rep === 'none' ? 'selected' : ''}>No rep</option></select>` : ''}
-      <label class="toggle"><input type="checkbox" data-chg="visitOpenToday" ${u.openToday ? 'checked' : ''}> Open today</label>
-      <span class="spacer"></span>
-      ${u.status !== 'all' ? `<button class="btn small ghost" data-act="visitStatus" data-val="${u.status}">Show all</button>` : ''}
+      ${tagSel}${repSel}
+      <button class="chip mini-chip ${u.openToday ? 'on' : ''}" data-act="toggleOpenToday">Open today</button>
+      ${u.status !== 'all' ? `<button class="chip mini-chip" data-act="visitStatus" data-val="${u.status}">Show all ✕</button>` : ''}
     </div>`;
     if (!items.length) return { ...res, html: h + '<div class="empty">Nothing here. Nice work!</div>' };
 
@@ -370,9 +370,9 @@ const Pages = {
     const segBtn = (v, l) => `<button class="${u.show === v ? 'on' : ''}" data-act="prioShow" data-val="${v}">${l}</button>`;
     let h = `<div class="seg" style="margin-bottom:10px">${segBtn('open', `Open (${nOpen})`)}${segBtn('done', `Done (${nDone})`)}${segBtn('all', 'All')}</div>
       <div class="scroll-x">${[['', 'Any importance'], ['high', 'High'], ['med', 'Medium'], ['low', 'Low']].map(([v, l]) => `<button class="chip ${u.imp === v ? 'on' : ''}" data-act="prioImp" data-val="${v}">${l}</button>`).join('')}</div>
-      <div class="toolbar">
-        <select data-chg="prioFilter" data-key="route"><option value="">All routes</option>${Data.routesSorted().map((r) => `<option value="${r.id}" ${u.route === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}<option value="none" ${u.route === 'none' ? 'selected' : ''}>General (no account)</option></select>
-        <select data-chg="prioFilter" data-key="sort">${[['importance', 'Sort: Importance'], ['due', 'Sort: Due date'], ['newest', 'Sort: Newest'], ['oldest', 'Sort: Oldest'], ['account', 'Sort: Account']].map(([v, l]) => `<option value="${v}" ${u.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <div class="scroll-x mini-row">
+        <select class="mini ${u.route ? 'on' : ''}" data-chg="prioFilter" data-key="route"><option value="">All routes</option>${Data.routesSorted().map((r) => `<option value="${r.id}" ${u.route === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}<option value="none" ${u.route === 'none' ? 'selected' : ''}>General (no account)</option></select>
+        <select class="mini" data-chg="prioFilter" data-key="sort">${[['importance', 'Sort: Importance'], ['due', 'Sort: Due date'], ['newest', 'Sort: Newest'], ['oldest', 'Sort: Oldest'], ['account', 'Sort: Account']].map(([v, l]) => `<option value="${v}" ${u.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
       </div>`;
     h += list.length ? `<div class="list">${list.map((p) => this.prioRow(p, true)).join('')}</div>` : `<div class="empty">${u.show === 'open' ? 'No open priorities. Add one with the + button.' : 'Nothing here.'}</div>`;
     return { title: 'Priorities', tab: 'priorities', html: h, actions: `<button class="btn small primary" data-act="addPriority">${icon('plus')} New</button>` };

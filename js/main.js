@@ -200,6 +200,7 @@ const ACT = {
   pickProdDone() { Modal.close(Array.from(Picker._prod.sel)); },
   pickAcctDone() { Modal.close(Array.from(Picker._acct.sel)); },
 
+  toggleOpenToday() { UI.visits.openToday = !UI.visits.openToday; UI.save(); App.refresh(); },
   visitStatus(el) { UI.visits.status = UI.visits.status === el.dataset.val ? 'all' : el.dataset.val; UI.save(); App.refresh(); },
   visitRoute(el) { UI.visits.route = el.dataset.val; UI.save(); App.refresh(); },
   toggleFilters() { UI.accounts.showFilters = !UI.accounts.showFilters; UI.save(); App.refresh(); },
