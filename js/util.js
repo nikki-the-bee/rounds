@@ -73,6 +73,14 @@ function mailAttrs(email) {
   if (/iPhone|iPad/i.test(ua)) return `href="${esc('ms-outlook://compose?to=' + encodeURIComponent(e))}"`;
   return `href="${esc(web)}" target="_blank" rel="noopener"`;
 }
+/* "@dane", "dane", or "instagram.com/dane/" -> "dane" */
+function igHandle(v) {
+  v = String(v || '').trim();
+  const m = v.match(/instagram\.com\/([A-Za-z0-9._]+)/i);
+  return (m ? m[1] : v).replace(/^@+/, '').replace(/[/?#].*$/, '').trim();
+}
+function igHref(h) { return 'https://www.instagram.com/' + encodeURIComponent(igHandle(h)) + '/'; }
+function socialHref(v) { v = String(v || '').trim(); return /^https?:\/\//i.test(v) ? v : 'https://' + v; }
 function mapHref(a) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(a); }
 function sortBy(arr, fn) { return arr.slice().sort((a, b) => { const x = fn(a), y = fn(b); return x < y ? -1 : x > y ? 1 : 0; }); }
 function words(q) { return norm(q).split(/\s+/).filter(Boolean); }
@@ -117,6 +125,8 @@ const ICON_PATHS = {
   up: '<path d="m18 15-6-6-6 6"/>',
   down: '<path d="m6 9 6 6 6-6"/>',
   users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.3A6.5 6.5 0 0 1 21.5 20"/>',
+  instagram: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/>',
+  link: '<path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
 };
 function icon(n) {

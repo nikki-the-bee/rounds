@@ -247,12 +247,15 @@ const Pages = {
       ${a.contacts.length ? a.contacts.map((c) => `<div class="contact">
         <div class="contact-main" data-act="editContact" data-acc="${a.id}" data-id="${c.id}">
           <div class="row-title">${esc(c.name || 'Unnamed')}</div>
-          <div class="row-sub">${esc([c.role, c.phone].filter(Boolean).join(' · '))}</div>
+          <div class="row-sub">${[esc(c.role), c.phone ? `<span style="white-space:nowrap">${esc(c.phone)}</span>` : ''].filter(Boolean).join(' · ')}</div>
           ${c.email ? `<div class="row-sub">${esc(c.email)}</div>` : ''}
+          ${c.instagram ? `<div class="row-sub">@${esc(c.instagram)}</div>` : ''}
         </div>
         <div class="contact-actions">
           ${c.phone ? `<a class="icon-btn" href="${telHref(c.phone)}" aria-label="Call">${icon('phone')}</a><a class="icon-btn" href="${smsHref(c.phone)}" aria-label="Text">${icon('msg')}</a>` : ''}
           ${c.email ? `<a class="icon-btn" ${mailAttrs(c.email)} aria-label="Email">${icon('mail')}</a>` : ''}
+          ${c.instagram ? `<a class="icon-btn" href="${esc(igHref(c.instagram))}" target="_blank" rel="noopener" aria-label="Instagram">${icon('instagram')}</a>` : ''}
+          ${c.social ? `<a class="icon-btn" href="${esc(socialHref(c.social))}" target="_blank" rel="noopener" aria-label="Other social">${icon('link')}</a>` : ''}
         </div></div>`).join('') : '<div class="muted small">No contacts yet.</div>'}
     </div>`;
 

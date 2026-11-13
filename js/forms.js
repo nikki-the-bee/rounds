@@ -78,6 +78,8 @@ const Forms = {
       <label class="field"><span>Role</span><input type="text" name="role" list="dl-roles" value="${esc(c.role)}" placeholder="Bar Manager, Owner…" autocomplete="off"></label>
       <label class="field"><span>Phone</span><input type="tel" name="phone" value="${esc(c.phone)}" autocomplete="off"></label>
       <label class="field"><span>Email</span><input type="email" name="email" value="${esc(c.email)}" autocomplete="off"></label>
+      <label class="field"><span>Instagram</span><input type="text" name="instagram" value="${c.instagram ? '@' + esc(c.instagram) : ''}" autocomplete="off" autocapitalize="off" placeholder="@handle"></label>
+      <label class="field"><span>Other social (optional)</span><input type="text" name="social" value="${esc(c.social)}" autocomplete="off" autocapitalize="off" placeholder="Link to Facebook, TikTok, LinkedIn…"></label>
       ${datalist('dl-roles', Data.roles())}`;
     Modal.open(formSheet('contact', isNew ? 'Add contact' : 'Edit contact', body, { id: c.id || '', del: isNew ? '' : 'deleteContact', extra: `data-acc="${esc(accId || '')}"` }));
   },
@@ -240,8 +242,8 @@ const FORMS = {
   contact(form, fd) {
     const a = Data.account(fd.get('accountId'));
     if (!a) return Toast.show('Choose an account');
-    const c = { name: val(fd, 'name'), role: val(fd, 'role'), phone: val(fd, 'phone'), email: val(fd, 'email') };
-    if (!c.name && !c.phone && !c.email) return Toast.show('Add at least a name, phone or email');
+    const c = { name: val(fd, 'name'), role: val(fd, 'role'), phone: val(fd, 'phone'), email: val(fd, 'email'), instagram: igHandle(val(fd, 'instagram')), social: val(fd, 'social') };
+    if (!c.name && !c.phone && !c.email && !c.instagram) return Toast.show('Add at least a name, phone, email or Instagram');
     const id = form.dataset.id;
     if (id) Object.assign(a.contacts.find((x) => x.id === id), c); else a.contacts.push({ id: uid(), ...c });
     Store.save(); Modal.close(); App.refresh();

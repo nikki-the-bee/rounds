@@ -55,9 +55,9 @@ const IO = {
     const h = XLSX.utils.aoa_to_sheet(help); h['!cols'] = [{ wch: 110 }];
     const prod = XLSX.utils.aoa_to_sheet([['Category', 'Subcategory', 'Brand', 'Product', 'Size'], ['Whiskey', 'Bourbon', 'Jim Beam', 'Jim Beam', '750ml'], ['Rum', '', 'Cruzan', 'Cruzan Black Strap Rum', '1L']]);
     prod['!cols'] = [16, 16, 20, 34, 10].map((wch) => ({ wch }));
-    const acct = XLSX.utils.aoa_to_sheet([['Account Name', 'Account Type', 'Address', 'Route', 'Tier', 'Breakthru Rep', 'Visit Every (Days)', 'Tags', 'Open Mondays', 'Open for Lunch', 'Best Times', 'Contact 1 Name', 'Contact 1 Role', 'Contact 1 Phone', 'Contact 1 Email', 'Contact 2 Name', 'Contact 2 Role', 'Contact 2 Phone', 'Contact 2 Email', 'Notes'],
-      ['The Copper Still', 'Bar', '123 Main St, Springfield, IL 62701', 'Downtown', 'A', 'Chris Miller', 14, 'My connection', 'No', 'Yes', 'Tues, Weds, Afternoon', 'Dane Smith', 'Bar Manager', '555-123-4567', 'dane@copperstill.com', '', '', '', '', 'Example row: delete me']]);
-    acct['!cols'] = [26, 16, 34, 14, 6, 16, 12, 22, 10, 10, 26, 18, 16, 15, 26, 18, 16, 15, 26, 34].map((wch) => ({ wch }));
+    const acct = XLSX.utils.aoa_to_sheet([['Account Name', 'Account Type', 'Address', 'Route', 'Tier', 'Breakthru Rep', 'Visit Every (Days)', 'Tags', 'Open Mondays', 'Open for Lunch', 'Best Times', 'Contact 1 Name', 'Contact 1 Role', 'Contact 1 Phone', 'Contact 1 Email', 'Contact 1 Instagram', 'Contact 2 Name', 'Contact 2 Role', 'Contact 2 Phone', 'Contact 2 Email', 'Contact 2 Instagram', 'Notes'],
+      ['The Copper Still', 'Bar', '123 Main St, Springfield, IL 62701', 'Downtown', 'A', 'Chris Miller', 14, 'My connection', 'No', 'Yes', 'Tues, Weds, Afternoon', 'Dane Smith', 'Bar Manager', '555-123-4567', 'dane@copperstill.com', '@danesmith', '', '', '', '', '', 'Example row: delete me']]);
+    acct['!cols'] = [26, 16, 34, 14, 6, 16, 12, 22, 10, 10, 26, 18, 16, 15, 26, 16, 18, 16, 15, 26, 16, 34].map((wch) => ({ wch }));
     XLSX.utils.book_append_sheet(wb, h, 'How to fill this in');
     XLSX.utils.book_append_sheet(wb, prod, 'Products');
     XLSX.utils.book_append_sheet(wb, acct, 'Accounts');
@@ -126,8 +126,8 @@ const IO = {
     const rowContacts = (r) => {
       const out = [];
       for (let n = 1; n <= 12; n++) {
-        const c = { name: r[`contact${n}name`] || (n === 1 ? r.contactname : '') || '', role: r[`contact${n}role`] || (n === 1 ? r.contactrole : '') || '', phone: r[`contact${n}phone`] || (n === 1 ? r.contactphone : '') || '', email: r[`contact${n}email`] || (n === 1 ? r.contactemail : '') || '' };
-        if (c.name || c.phone || c.email) out.push(c);
+        const c = { name: r[`contact${n}name`] || (n === 1 ? r.contactname : '') || '', role: r[`contact${n}role`] || (n === 1 ? r.contactrole : '') || '', phone: r[`contact${n}phone`] || (n === 1 ? r.contactphone : '') || '', email: r[`contact${n}email`] || (n === 1 ? r.contactemail : '') || '', instagram: igHandle(r[`contact${n}instagram`] || (n === 1 ? r.contactinstagram : '') || ''), social: r[`contact${n}othersocial`] || r[`contact${n}social`] || '' };
+        if (c.name || c.phone || c.email || c.instagram) out.push(c);
       }
       return out;
     };
@@ -181,6 +181,7 @@ const IO = {
       for (const c of rowContacts(r)) {
         const dup = a.contacts.some((x) => (c.name && norm(x.name) === norm(c.name)) || (c.phone && x.phone === c.phone) || (c.email && norm(x.email) === norm(c.email)));
         if (!dup) a.contacts.push({ id: uid(), ...c });
+        else { const x = a.contacts.find((y) => c.name && norm(y.name) === norm(c.name)); if (x) { if (!x.instagram && c.instagram) x.instagram = c.instagram; if (!x.social && c.social) x.social = c.social; } }
       }
       for (const id of tagIds(r.tags)) { a.tags ||= []; if (!a.tags.includes(id)) a.tags.push(id); }
       if (!a.lunch && yn(r.openforlunch || r.lunch)) a.lunch = yn(r.openforlunch || r.lunch);
@@ -243,18 +244,18 @@ IO.exportSheet = async function () {
   const accts = sortBy(s.accounts, (a) => `${String(Data.route(a.routeId)?.order ?? 999).padStart(4, '0')}|${norm(a.name)}`);
   const maxC = Math.max(2, ...accts.map((a) => a.contacts.length));
   const hdr = ['ID', 'Account Name', 'Account Type', 'Address', 'Route', 'Tier', 'Breakthru Rep', 'Visit Every (Days)', 'Tags', 'Open for Lunch', 'Hours', 'Best Times', 'Archived'];
-  for (let i = 1; i <= maxC; i++) hdr.push(`Contact ${i} Name`, `Contact ${i} Role`, `Contact ${i} Phone`, `Contact ${i} Email`);
+  for (let i = 1; i <= maxC; i++) hdr.push(`Contact ${i} Name`, `Contact ${i} Role`, `Contact ${i} Phone`, `Contact ${i} Email`, `Contact ${i} Instagram`, `Contact ${i} Other Social`);
   const yn = (v) => (v === 'yes' ? 'Yes' : v === 'no' ? 'No' : '');
   const rows = accts.map((a) => {
     const hours = DAY_ORDER.filter((d) => a.hours[d]).map((d) => `${DAY_LABEL[d]}: ${a.hours[d].closed ? 'Closed' : `${a.hours[d].from || ''}-${a.hours[d].to || ''}`}`).join('; ');
     const best = DAY_ORDER.filter((d) => (a.best[d] || []).length).map((d) => `${DAY_LABEL[d]}: ${a.best[d].map((x) => SLOT_LABEL[x]).join(', ')}`).join('; ');
     const row = [a.id, a.name, a.type || '', a.address || '', Data.route(a.routeId)?.name || '', a.tier || '', Data.repName(a), a.freqDays || '', Data.acctTags(a).map((t) => t.name).join(', '), yn(a.lunch), hours, best, a.archived ? 'Yes' : 'No'];
-    for (let i = 0; i < maxC; i++) { const c = a.contacts[i] || {}; row.push(c.name || '', c.role || '', c.phone || '', c.email || ''); }
+    for (let i = 0; i < maxC; i++) { const c = a.contacts[i] || {}; row.push(c.name || '', c.role || '', c.phone || '', c.email || '', c.instagram ? '@' + c.instagram : '', c.social || ''); }
     return row;
   });
   const wb = XLSX.utils.book_new();
   const acc = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
-  acc['!cols'] = [6, 30, 14, 40, 24, 5, 14, 9, 28, 9, 30, 30, 8, ...Array(maxC).fill([16, 18, 14, 26]).flat()].map((wch) => ({ wch }));
+  acc['!cols'] = [6, 30, 14, 40, 24, 5, 14, 9, 28, 9, 30, 30, 8, ...Array(maxC).fill([16, 18, 14, 26, 18, 24]).flat()].map((wch) => ({ wch }));
   acc['!cols'][0].hidden = true;
   const name = (id) => Data.account(id)?.name || '(deleted)';
   const lm = Data.lastVisitMap();

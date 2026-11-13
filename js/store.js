@@ -209,7 +209,7 @@ const Data = {
   searchText(a) {
     const s = this.s;
     const parts = [a.name, a.type, a.address, this.route(a.routeId)?.name, a.tier ? 'tier ' + a.tier : '', this.repName(a), ...this.acctTags(a).map((t) => t.name)];
-    a.contacts.forEach((c) => parts.push(c.name, c.role, c.phone, c.email));
+    a.contacts.forEach((c) => parts.push(c.name, c.role, c.phone, c.email, c.instagram, c.social));
     a.placements.forEach((pl) => { const p = this.product(pl.productId); if (p) parts.push(p.brand, p.name, p.size); parts.push(pl.cocktailName, pl.competitor, pl.notes); });
     s.notes.forEach((n) => { if (n.accountId === a.id) parts.push(n.text); });
     s.priorities.forEach((p) => { if (p.accountId === a.id) parts.push(p.text); });
