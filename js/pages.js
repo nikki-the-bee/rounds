@@ -235,7 +235,7 @@ const Pages = {
       </div>
       ${a.address ? `<a class="addr" href="${mapHref(a.address)}" target="_blank" rel="noopener">${icon('map')}<span>${esc(a.address)}</span></a>` : ''}
       <div class="line">${statusDot(st)} ${esc(Data.statusText(st))}${st.last ? ` (${fmtDate(st.last.at)})` : ''} · every ${st.freq} days</div>
-      ${Data.repName(a) ? `<div class="line">${icon('user')} Breakthru rep:&nbsp;<a href="#/rep/${a.repId}">${esc(Data.repName(a))}</a></div>` : ''}
+      ${Data.repName(a) ? `<div class="line">${icon('user')} Breakthru rep:&nbsp;<a href="#/rep/${a.repId}">${esc(Data.repName(a))}</a></div>` : `<div class="line">${icon('user')} Breakthru rep:&nbsp;<button class="link-btn" style="padding:0" data-act="editAccount" data-id="${a.id}">+ Add</button></div>`}
       <div class="action-row">
         <button class="btn primary" data-act="checkIn" data-id="${a.id}">${icon('check')}Check in</button>
         <button class="btn" data-act="addNote" data-acc="${a.id}">${icon('note')}Note</button>
