@@ -32,6 +32,7 @@ function routeSelect(cur) {
     ${Data.routesSorted().map((r) => `<option value="${r.id}" ${cur === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}
     <option value="__new">+ New route…</option></select></label>`;
 }
+function tagChip(t, on) { return `<label><input type="checkbox" name="tags" value="${t.id}" ${on ? 'checked' : ''}><span style="--tc:${t.color}">${esc(t.name)}</span></label>`; }
 const val = (fd, k) => String(fd.get(k) ?? '').trim();
 
 const Forms = {
@@ -56,13 +57,16 @@ const Forms = {
       <label class="field"><span>Address</span><input type="text" name="address" value="${esc(a.address)}" placeholder="Street, city" autocomplete="off"></label>
       ${routeSelect(a.routeId)}
       ${tierSeg}
-      <label class="field"><span>Breakthru rep</span><input type="text" name="rep" list="dl-reps" value="${esc(a.rep)}" autocomplete="off"></label>
+      <label class="field"><span>Breakthru rep</span><select name="repId" data-chg="repSel">
+        <option value="">No rep</option>
+        ${Data.reps().map((r) => `<option value="${r.id}" ${a.repId === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}
+        <option value="__new">+ Add new rep…</option></select></label>
       ${freqField(a.freqDays)}
-      <div class="field"><span>Tags</span>${Data.tags().length ? `<div class="tag-pick">${Data.tags().map((t) => `<label><input type="checkbox" name="tags" value="${t.id}" ${(a.tags || []).includes(t.id) ? 'checked' : ''}><span style="--tc:${t.color}">${esc(t.name)}</span></label>`).join('')}</div>` : '<div class="small muted">No tags yet. Create them under More → Tags.</div>'}</div>
+      <div class="field"><span>Tags</span><div class="tag-pick">${Data.tags().map((t) => tagChip(t, (a.tags || []).includes(t.id))).join('')}<button type="button" class="chip" data-act="newTagInline">${icon('plus')} New tag</button></div></div>
       ${isNew ? `<div class="section-label">Main contact (optional)</div>
         <div class="two"><label class="field"><span>Name</span><input type="text" name="cName" autocomplete="off"></label><label class="field"><span>Role</span><input type="text" name="cRole" list="dl-roles" autocomplete="off"></label></div>
         <div class="two"><label class="field"><span>Phone</span><input type="tel" name="cPhone" autocomplete="off"></label><label class="field"><span>Email</span><input type="email" name="cEmail" autocomplete="off"></label></div>` : ''}
-      ${datalist('dl-types', Data.types())}${datalist('dl-reps', Data.reps())}${datalist('dl-roles', Data.roles())}`;
+      ${datalist('dl-types', Data.types())}${datalist('dl-roles', Data.roles())}`;
     Modal.open(formSheet('account', isNew ? 'New account' : 'Edit account', body, { id: a.id || '', submit: isNew ? 'Create' : 'Save' }), { cls: 'tall' });
   },
 
@@ -154,6 +158,15 @@ const Forms = {
     });
   },
 
+  rep(r) {
+    return new Promise((res) => {
+      const isNew = !r; r = r || {};
+      const n = r.id ? Data.s.accounts.filter((a) => a.repId === r.id).length : 0;
+      const body = `<label class="field"><span>Rep's name</span><input type="text" name="name" value="${esc(r.name)}" autofocus autocomplete="off" placeholder="First and last name"></label>
+        ${isNew ? `<p class="hint">Already listed: ${Data.reps().map((x) => esc(x.name)).join(', ') || 'nobody yet'}.</p>` : `<p class="hint">Assigned to ${plural(n, 'account')}. Renaming updates all of them.</p>`}`;
+      Modal.open(formSheet('rep', isNew ? 'New Breakthru rep' : 'Edit rep', body, { id: r.id || '', del: isNew ? '' : 'deleteRep' }), { onClose: res });
+    });
+  },
   tag(t) {
     return new Promise((res) => {
       const isNew = !t; t = t || { color: ROUTE_COLORS[Data.tags().length % ROUTE_COLORS.length] };
@@ -207,7 +220,7 @@ const FORMS = {
     let freq = fd.get('freqSel');
     freq = freq === 'custom' ? parseInt(fd.get('freqCustom'), 10) || null : freq ? Number(freq) : null;
     let routeId = fd.get('routeId'); if (routeId === '__new') routeId = '';
-    const fields = { name, type: val(fd, 'type'), address: val(fd, 'address'), routeId, tier: fd.get('tier') || '', rep: val(fd, 'rep'), freqDays: freq, tags: fd.getAll('tags') };
+    const fields = { name, type: val(fd, 'type'), address: val(fd, 'address'), routeId, tier: fd.get('tier') || '', repId: fd.get('repId') === '__new' ? '' : fd.get('repId') || '', freqDays: freq, tags: fd.getAll('tags') };
     let a;
     if (id) { a = Data.account(id); Object.assign(a, fields); }
     else {
@@ -297,11 +310,31 @@ const FORMS = {
     else { r = { id: uid(), name, color: fd.get('color') || ROUTE_COLORS[0], order: s.routes.length ? Math.max(...s.routes.map((x) => x.order ?? 0)) + 1 : 0 }; s.routes.push(r); }
     Store.save(); Modal.close(r.id); App.refresh();
   },
+  async rep(form, fd) {
+    const name = niceName(val(fd, 'name'));
+    if (!name) return Toast.show('Enter the rep\'s name');
+    const id = form.dataset.id, reps = Data.s.settings.reps;
+    const same = reps.find((x) => norm(x.name) === norm(name) && x.id !== id);
+    if (same && !id) { Modal.close(same.id); Toast.show(`${same.name} is already on your list`); return; }
+    if (same && id) {
+      const r = Data.rep(id);
+      if (!(await confirmBox(`"${same.name}" already exists. Merge "${r.name}" into it? Every account assigned to "${r.name}" will move to "${same.name}".`, { ok: 'Merge', title: 'Merge reps?' }))) return;
+      Data.s.accounts.forEach((a) => { if (a.repId === id) a.repId = same.id; });
+      Data.s.settings.reps = reps.filter((x) => x.id !== id);
+      Store.save(); Modal.close(same.id); App.refresh(); Toast.show('Reps merged');
+      return;
+    }
+    let r;
+    if (id) { r = Data.rep(id); r.name = name; } else { r = { id: uid(), name }; reps.push(r); }
+    Store.save(); Modal.close(r.id); App.refresh();
+  },
   tag(form, fd) {
     const name = val(fd, 'name');
     if (!name) return Toast.show('Name the tag');
     const id = form.dataset.id, tags = Data.s.settings.tags;
     let t;
+    const same = tags.find((x) => norm(x.name) === norm(name) && x.id !== id);
+    if (same && !id) { Modal.close(same.id); return; }
     if (id) { t = Data.tag(id); t.name = name; t.color = fd.get('color') || t.color; }
     else { t = { id: uid(), name, color: fd.get('color') || TAG_COLORS[0] }; tags.push(t); }
     Store.save(); Modal.close(t.id); App.refresh();

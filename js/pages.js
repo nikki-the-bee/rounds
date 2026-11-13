@@ -1,7 +1,7 @@
 'use strict';
 /* ---------- View state (remembered between sessions) ---------- */
 const UI = {
-  visits: { route: 'all', sort: 'overdue', openToday: false, status: 'all', tag: '' },
+  visits: { route: 'all', sort: 'overdue', openToday: false, status: 'all', tag: '', rep: '' },
   accounts: { q: '', route: '', tag: '', type: '', tier: '', rep: '', brand: '', product: '', placement: '', status: '', prio: false, archived: 'active', sort: 'name', showFilters: false },
   prios: { show: 'open', imp: '', route: '', sort: 'importance' },
   products: { q: '' },
@@ -49,6 +49,8 @@ const Pages = {
     if (u.route !== 'all') items = items.filter((x) => (u.route === 'none' ? !Data.route(x.a.routeId) : x.a.routeId === u.route));
     if (u.tag && u.tag !== 'none' && !Data.tag(u.tag)) u.tag = '';
     if (u.tag) items = items.filter((x) => (u.tag === 'none' ? !(x.a.tags || []).length : (x.a.tags || []).includes(u.tag)));
+    if (u.rep && u.rep !== 'none' && !Data.rep(u.rep)) u.rep = '';
+    if (u.rep) items = items.filter((x) => (u.rep === 'none' ? !Data.rep(x.a.repId) : x.a.repId === u.rep));
     if (u.openToday) items = items.filter((x) => Data.todayHours(x.a)?.open !== false);
     const counts = { never: 0, overdue: 0, due: 0, ok: 0 };
     items.forEach((x) => counts[x.st.status]++);
@@ -76,6 +78,7 @@ const Pages = {
         ${[['overdue', 'Most overdue first'], ['oldest', 'Least recently visited'], ['route', 'Group by route'], ['name', 'A–Z']].map(([v, l]) => `<option value="${v}" ${u.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
       </select>
       ${Data.tags().length ? `<select data-chg="visitTag" aria-label="Tag" style="width:auto"><option value="">All tags</option>${Data.tags().map((t) => `<option value="${t.id}" ${u.tag === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}<option value="none" ${u.tag === 'none' ? 'selected' : ''}>Untagged</option></select>` : ''}
+      ${Data.reps().length ? `<select data-chg="visitRep" aria-label="Breakthru rep" style="width:auto"><option value="">All reps</option>${Data.reps().map((r) => `<option value="${r.id}" ${u.rep === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}<option value="none" ${u.rep === 'none' ? 'selected' : ''}>No rep</option></select>` : ''}
       <label class="toggle"><input type="checkbox" data-chg="visitOpenToday" ${u.openToday ? 'checked' : ''}> Open today</label>
       <span class="spacer"></span>
       ${u.status !== 'all' ? `<button class="btn small ghost" data-act="visitStatus" data-val="${u.status}">Show all</button>` : ''}
@@ -150,7 +153,7 @@ const Pages = {
     const routes = [['', 'Any route'], ...Data.routesSorted().map((r) => [r.id, r.name]), ['none', 'No route']];
     const types = [['', 'Any type'], ...Data.types().map((t) => [t, t])];
     const tiers = [['', 'Any tier'], ['A', 'Tier A'], ['B', 'Tier B'], ['C', 'Tier C'], ['none', 'No tier']];
-    const reps = [['', 'Any rep'], ...Data.reps().map((r) => [r, r])];
+    const reps = [['', 'Any rep'], ...Data.reps().map((r) => [r.id, r.name]), ['none', 'No rep']];
     const brands = [['', 'Any brand'], ...Data.brands().map((b) => [b, b])];
     const prods = [['', u.brand ? 'Any product' : 'Pick a brand first'], ...(u.brand ? Data.productNames(u.brand).map((p) => [p, p]) : [])];
     return `<div class="card"><div class="filters">
@@ -172,7 +175,8 @@ const Pages = {
     if (u.tag) list = list.filter((a) => (u.tag === 'none' ? !(a.tags || []).length : (a.tags || []).includes(u.tag)));
     if (u.type) list = list.filter((a) => norm(a.type) === norm(u.type));
     if (u.tier) list = list.filter((a) => (u.tier === 'none' ? !a.tier : a.tier === u.tier));
-    if (u.rep) list = list.filter((a) => a.rep === u.rep);
+    if (u.rep && u.rep !== 'none' && !Data.rep(u.rep)) u.rep = '';
+    if (u.rep) list = list.filter((a) => (u.rep === 'none' ? !Data.rep(a.repId) : a.repId === u.rep));
     if (u.brand || u.product || u.placement) {
       list = list.filter((a) => a.placements.some((pl) => {
         const p = Data.product(pl.productId);
@@ -229,7 +233,7 @@ const Pages = {
       </div>
       ${a.address ? `<a class="addr" href="${mapHref(a.address)}" target="_blank" rel="noopener">${icon('map')}<span>${esc(a.address)}</span></a>` : ''}
       <div class="line">${statusDot(st)} ${esc(Data.statusText(st))}${st.last ? ` (${fmtDate(st.last.at)})` : ''} · every ${st.freq} days</div>
-      ${a.rep ? `<div class="line">${icon('user')} Breakthru rep: ${esc(a.rep)}</div>` : ''}
+      ${Data.repName(a) ? `<div class="line">${icon('user')} Breakthru rep: ${esc(Data.repName(a))}</div>` : ''}
       <div class="action-row">
         <button class="btn primary" data-act="checkIn" data-id="${a.id}">${icon('check')}Check in</button>
         <button class="btn" data-act="addNote" data-acc="${a.id}">${icon('note')}Note</button>
@@ -418,6 +422,7 @@ const Pages = {
     <div class="card"><h2>Organize</h2>
       <div class="setting"><div class="row-main"><div class="row-title">Routes</div><div class="row-sub">${plural(s.routes.length, 'route')}. Group accounts by part of town and move them around.</div></div><a class="btn small" href="#/routes">Manage</a></div>
       <div class="setting"><div class="row-main"><div class="row-title">Tags</div><div class="row-sub">${plural(Data.tags().length, 'tag')}. Labels like "My connection" or "Chopping Block".</div></div><a class="btn small" href="#/tags">Manage</a></div>
+      <div class="setting"><div class="row-main"><div class="row-title">Breakthru reps</div><div class="row-sub">${plural(Data.reps().length, 'rep')}. Rename or merge to fix spellings everywhere.</div></div><a class="btn small" href="#/reps">Manage</a></div>
       <div class="setting"><div class="row-main"><div class="row-title">Default visit frequency</div><div class="row-sub">Used for accounts without their own target</div></div>
         <select style="width:auto" data-chg="defaultFreq">${FREQ_PRESETS.map(([d, l]) => `<option value="${d}" ${Number(set.defaultFreq) === d ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="setting"><div class="row-main"><div class="row-title">Account types & contact roles</div><div class="row-sub">Edit the suggestion lists</div></div><button class="btn small" data-act="editTypes">Edit</button></div>
@@ -467,6 +472,17 @@ const Pages = {
         <button class="icon-btn ghost" data-act="tagMove" data-id="${t.id}" data-dir="-1" ${i === 0 ? 'disabled' : ''} aria-label="Move up">${icon('up')}</button>
       </div>`).join('')}</div>` : '<div class="empty">No tags yet.</div>';
     return { title: 'Tags', tab: 'more', back: true, html: h, actions: `<button class="btn small primary" data-act="newTag">${icon('plus')} New</button>` };
+  },
+  reps() {
+    const reps = Data.reps();
+    const count = (id) => Data.s.accounts.filter((a) => a.repId === id).length;
+    let h = `<p class="small muted" style="margin:0 4px 10px">Each rep is saved once and picked from a list on each account, so spellings stay consistent. Renaming a rep updates every account. Renaming one rep to another's exact name merges them.</p>`;
+    h += reps.length ? `<div class="list">${reps.map((r) => `<div class="row" data-act="editRep" data-id="${r.id}">
+        <span class="icon-btn ghost" style="width:28px;height:28px">${icon('user')}</span>
+        <div class="row-main"><div class="row-title">${esc(r.name)}</div><div class="row-sub">${plural(count(r.id), 'account')}</div></div>
+        <button class="btn small" data-act="repAccounts" data-id="${r.id}">View</button>
+      </div>`).join('')}</div>` : '<div class="empty">No reps yet.</div>';
+    return { title: 'Breakthru reps', tab: 'more', back: true, html: h, actions: `<button class="btn small primary" data-act="newRep">${icon('plus')} New</button>` };
   },
   route(id) {
     const r = id === 'none' ? null : Data.route(id);

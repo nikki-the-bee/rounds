@@ -148,7 +148,7 @@ const IO = {
       if (has('address')) a.address = r.address;
       if (has('route')) a.routeId = routeFor(r.route);
       if (has('tier')) { const t = r.tier.toUpperCase(); a.tier = ['A', 'B', 'C'].includes(t) ? t : ''; }
-      if (has('breakthrurep')) a.rep = r.breakthrurep;
+      if (has('breakthrurep')) a.repId = Data.repFor(r.breakthrurep);
       if (has('visiteverydays')) { const f = parseInt(r.visiteverydays, 10); a.freqDays = f > 0 ? f : null; }
       if (has('tags')) a.tags = tagIds(r.tags);
       if (has('openforlunch')) a.lunch = yn(r.openforlunch);
@@ -166,7 +166,7 @@ const IO = {
     for (const r of nameRows) {
       let a = s.accounts.find((x) => norm(x.name) === norm(r.accountname));
       if (!a) {
-        a = { id: uid(), name: r.accountname, createdAt: now, archived: false, contacts: [], placements: [], hours: {}, best: {}, tags: [], type: '', address: '', routeId: '', tier: '', rep: '', freqDays: null };
+        a = { id: uid(), name: r.accountname, createdAt: now, archived: false, contacts: [], placements: [], hours: {}, best: {}, tags: [], type: '', address: '', routeId: '', tier: '', repId: '', freqDays: null };
         s.accounts.push(a); aAdded++;
       } else if (!touched.has(a.id)) aUpdated++;
       touched.add(a.id);
@@ -175,7 +175,7 @@ const IO = {
       if (!Data.route(a.routeId) && r.route) a.routeId = routeFor(r.route);
       const tier = (r.tier || '').toUpperCase();
       if (!a.tier && ['A', 'B', 'C'].includes(tier)) a.tier = tier;
-      if (!a.rep && (r.breakthrurep || r.rep)) a.rep = r.breakthrurep || r.rep;
+      if (!Data.rep(a.repId) && (r.breakthrurep || r.rep)) a.repId = Data.repFor(r.breakthrurep || r.rep);
       const f = parseInt(r.visitevery || r.visiteverydays || r.frequency, 10);
       if (!a.freqDays && f > 0) a.freqDays = f;
       for (const c of rowContacts(r)) {
@@ -248,7 +248,7 @@ IO.exportSheet = async function () {
   const rows = accts.map((a) => {
     const hours = DAY_ORDER.filter((d) => a.hours[d]).map((d) => `${DAY_LABEL[d]}: ${a.hours[d].closed ? 'Closed' : `${a.hours[d].from || ''}-${a.hours[d].to || ''}`}`).join('; ');
     const best = DAY_ORDER.filter((d) => (a.best[d] || []).length).map((d) => `${DAY_LABEL[d]}: ${a.best[d].map((x) => SLOT_LABEL[x]).join(', ')}`).join('; ');
-    const row = [a.id, a.name, a.type || '', a.address || '', Data.route(a.routeId)?.name || '', a.tier || '', a.rep || '', a.freqDays || '', Data.acctTags(a).map((t) => t.name).join(', '), yn(a.lunch), hours, best, a.archived ? 'Yes' : 'No'];
+    const row = [a.id, a.name, a.type || '', a.address || '', Data.route(a.routeId)?.name || '', a.tier || '', Data.repName(a), a.freqDays || '', Data.acctTags(a).map((t) => t.name).join(', '), yn(a.lunch), hours, best, a.archived ? 'Yes' : 'No'];
     for (let i = 0; i < maxC; i++) { const c = a.contacts[i] || {}; row.push(c.name || '', c.role || '', c.phone || '', c.email || ''); }
     return row;
   });

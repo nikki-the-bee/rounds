@@ -35,6 +35,7 @@ const Store = (() => {
         lastBackup: null,
         accountTypes: ['Bar', 'Restaurant', 'Country Club', 'Hotel', 'Nightclub', 'Brewery / Taproom', 'Event Venue', 'Golf Course', 'Casino', 'Other'],
         tags: [],
+        reps: [],
         roles: ['Owner', 'General Manager', 'Bar Manager', 'Beverage Director', 'Bartender', 'Chef', 'Purchasing', 'F&B Director'],
       },
       routes: [], products: [], accounts: [], notes: [], priorities: [], visits: [], opportunities: [],
@@ -46,6 +47,16 @@ const Store = (() => {
     s.settings = { ...d.settings, ...(s.settings || {}) };
     for (const k of ['routes', 'products', 'accounts', 'notes', 'priorities', 'visits', 'opportunities']) if (!Array.isArray(s[k])) s[k] = [];
     s.accounts.forEach((a) => { a.contacts ||= []; a.placements ||= []; a.hours ||= {}; a.best ||= {}; a.tags ||= []; });
+    // reps used to be free text on each account: turn them into one shared list
+    s.settings.reps ||= [];
+    for (const a of s.accounts) {
+      if (a.rep && !a.repId) {
+        let r = s.settings.reps.find((x) => x.name.trim().toLowerCase() === String(a.rep).trim().toLowerCase());
+        if (!r) { r = { id: 'r' + Math.random().toString(36).slice(2, 10), name: String(a.rep).trim() }; s.settings.reps.push(r); }
+        a.repId = r.id;
+      }
+      delete a.rep;
+    }
     syncCatalog(s);
     return s;
   }
@@ -167,7 +178,18 @@ const Data = {
   liveProducts(keepIds) { return this.s.products.filter((p) => !p.hidden && (!p.discontinued || keepIds?.has(p.id))); },
   brands() { return uniqSorted(this.s.products.map((p) => p.brand)); },
   productNames(brand) { return uniqSorted(this.s.products.filter((p) => !brand || p.brand === brand).map((p) => p.name)); },
-  reps() { return uniqSorted(this.s.accounts.map((a) => a.rep)); },
+  reps() { return sortBy(this.s.settings.reps || [], (r) => norm(r.name)); },
+  rep(id) { return id ? (this.s.settings.reps || []).find((r) => r.id === id) : null; },
+  repName(a) { return this.rep(a.repId)?.name || ''; },
+  /* find a rep by name (ignoring case/spacing) or add them */
+  repFor(name) {
+    name = niceName(name);
+    if (!name) return '';
+    const reps = this.s.settings.reps;
+    let r = reps.find((x) => norm(x.name) === norm(name));
+    if (!r) { r = { id: uid(), name }; reps.push(r); }
+    return r.id;
+  },
   types() { return uniqSorted([...this.s.settings.accountTypes, ...this.s.accounts.map((a) => a.type)]); },
   roles() { return uniqSorted([...this.s.settings.roles, ...this.s.accounts.flatMap((a) => a.contacts.map((c) => c.role))]); },
   sortPriorities(list, mode = 'importance') {
@@ -185,7 +207,7 @@ const Data = {
   },
   searchText(a) {
     const s = this.s;
-    const parts = [a.name, a.type, a.address, this.route(a.routeId)?.name, a.tier ? 'tier ' + a.tier : '', a.rep, ...this.acctTags(a).map((t) => t.name)];
+    const parts = [a.name, a.type, a.address, this.route(a.routeId)?.name, a.tier ? 'tier ' + a.tier : '', this.repName(a), ...this.acctTags(a).map((t) => t.name)];
     a.contacts.forEach((c) => parts.push(c.name, c.role, c.phone, c.email));
     a.placements.forEach((pl) => { const p = this.product(pl.productId); if (p) parts.push(p.brand, p.name, p.size); parts.push(pl.cocktailName, pl.competitor, pl.notes); });
     s.notes.forEach((n) => { if (n.accountId === a.id) parts.push(n.text); });

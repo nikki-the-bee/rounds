@@ -72,6 +72,8 @@ function sizeValue(size) {
   if (m[2] && m[2].startsWith('l')) return n * 1000;
   return n;
 }
+/* "jess park" -> "Jess Park" (leaves names with any capitals alone, e.g. "McKnight") */
+function niceName(s) { s = String(s || '').trim().replace(/\s+/g, ' '); return s === s.toLowerCase() ? s.replace(/(^|[\s'-])([a-z])/g, (m, p, c) => p + c.toUpperCase()) : s; }
 function uniqSorted(arr) { return Array.from(new Set(arr.filter(Boolean))).sort((a, b) => a.localeCompare(b)); }
 
 const ICON_PATHS = {

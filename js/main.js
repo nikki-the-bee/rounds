@@ -10,6 +10,7 @@ const ROUTES = [
   [/^#\/more$/, () => Pages.more()],
   [/^#\/routes$/, () => Pages.routes()],
   [/^#\/tags$/, () => Pages.tags()],
+  [/^#\/reps$/, () => Pages.reps()],
   [/^#\/route\/([\w-]+)$/, (id) => Pages.route(id)],
 ];
 
@@ -238,6 +239,26 @@ const ACT = {
   },
 
   newTag() { Forms.tag(); },
+  async newTagInline(el) {
+    const box = el.closest('.tag-pick');
+    const id = await Forms.tag();
+    const t = id && Data.tag(id);
+    if (!t) return;
+    const existing = box.querySelector(`input[value="${t.id}"]`);
+    if (existing) { existing.checked = true; return; }
+    el.insertAdjacentHTML('beforebegin', tagChip(t, true));
+  },
+  newRep() { Forms.rep(); },
+  editRep(el) { Forms.rep(Data.rep(el.dataset.id)); },
+  repAccounts(el) { ACT.clearFilters(); UI.accounts.rep = el.dataset.id; UI.accounts.showFilters = true; UI.save(); location.hash = '#/accounts'; },
+  async deleteRep(el) {
+    const r = Data.rep(el.dataset.id);
+    const n = Data.s.accounts.filter((a) => a.repId === r.id).length;
+    if (!(await confirmBox(`Remove ${r.name} from your rep list?${n ? ` ${plural(n, 'account')} will be left with no rep.` : ''}`, { ok: 'Remove', danger: true }))) return;
+    Data.s.settings.reps = Data.s.settings.reps.filter((x) => x.id !== r.id);
+    Data.s.accounts.forEach((a) => { if (a.repId === r.id) a.repId = ''; });
+    Modal.close(); commit();
+  },
   editTag(el) { Forms.tag(Data.tag(el.dataset.id)); },
   tagAccounts(el) { ACT.clearFilters(); UI.accounts.tag = el.dataset.id; UI.save(); location.hash = '#/accounts'; },
   tagMove(el) {
@@ -284,6 +305,7 @@ const ACT = {
 /* ---------- Change / input handlers ---------- */
 const CHG = {
   visitSort(el) { UI.visits.sort = el.value; UI.save(); App.refresh(); },
+  visitRep(el) { UI.visits.rep = el.value; UI.save(); App.refresh(); },
   visitTag(el) { UI.visits.tag = el.value; UI.save(); App.refresh(); },
   visitOpenToday(el) { UI.visits.openToday = el.checked; UI.save(); App.refresh(); },
   acctFilter(el) {
@@ -300,6 +322,15 @@ const CHG = {
     const r = id && Data.route(id);
     if (r) { const o = document.createElement('option'); o.value = r.id; o.textContent = r.name; el.insertBefore(o, el.lastElementChild); el.value = r.id; }
     else el.value = '';
+  },
+  async repSel(el) {
+    if (el.value !== '__new') return;
+    const id = await Forms.rep();
+    const r = id && Data.rep(id);
+    if (r) {
+      if (!el.querySelector(`option[value="${r.id}"]`)) { const o = document.createElement('option'); o.value = r.id; o.textContent = r.name; el.insertBefore(o, el.lastElementChild); }
+      el.value = r.id;
+    } else el.value = '';
   },
   plCocktail(el) { $('#cocktailField').hidden = !el.checked; },
   hoursClosed(el) { const f = el.form, d = el.dataset.day; f['from_' + d].disabled = f['to_' + d].disabled = el.checked; },
