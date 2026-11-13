@@ -89,9 +89,10 @@ const Forms = {
     repId = repId || note.repId || '';
     const about = repId ? `Rep: ${Data.rep(repId)?.name || ''}` : Data.account(note.accountId)?.name || '';
     const body = `${repId ? `<input type="hidden" name="repId" value="${esc(repId)}">${isNew ? `<p class="hint" style="margin-top:0">${esc(about)}</p>` : ''}` : isNew ? acctField(accountId) : `<input type="hidden" name="accountId" value="${note.accountId}">`}
-      ${!isNew ? `<p class="hint" style="margin-top:0">${esc(about)} · added ${fmtDateTime(note.createdAt)}${note.updatedAt && note.updatedAt !== note.createdAt ? ` · edited ${fmtDateTime(note.updatedAt)}` : ''}</p>` : ''}
+      ${!isNew ? `<p class="hint" style="margin-top:0">${esc(about)}${note.updatedAt && note.updatedAt !== note.createdAt ? ` · last edited ${fmtDateTime(note.updatedAt)}` : ''}</p>` : ''}
       <label class="field"><span>Note</span><textarea name="text" autofocus rows="6" placeholder="What happened, what you learned…">${esc(note.text)}</textarea></label>
-      ${isNew ? '<p class="hint">Today\'s date and time are saved with the note.</p>' : ''}`;
+      <label class="field"><span>Date &amp; time</span><input type="datetime-local" name="at" value="${toLocalInput(note.createdAt || new Date())}" max="${toLocalInput(new Date(Date.now() + 864e5))}"></label>
+      ${isNew ? '<p class="hint">Set to right now. Change it if you\'re catching up on an earlier day.</p>' : ''}`;
     Modal.open(formSheet('note', isNew ? 'New note' : 'Edit note', body, { id: note.id || '', del: isNew ? '' : 'deleteNote' }));
   },
 
@@ -263,8 +264,16 @@ const FORMS = {
     if (!accId && !repId) return Toast.show('Choose an account');
     if (!text) return Toast.show('The note is empty');
     const id = form.dataset.id, now = new Date().toISOString();
-    if (id) { const n = Data.s.notes.find((x) => x.id === id); if (n.text !== text) { n.text = text; n.updatedAt = now; } }
-    else Data.s.notes.push({ id: uid(), accountId: accId, repId, text, createdAt: now, updatedAt: now });
+    const at = fd.get('at') ? new Date(fd.get('at')).toISOString() : null;
+    if (id) {
+      const n = Data.s.notes.find((x) => x.id === id);
+      const editedBefore = n.updatedAt && n.updatedAt !== n.createdAt;
+      if (at && toLocalInput(at) !== toLocalInput(n.createdAt)) { n.createdAt = at; if (!editedBefore) n.updatedAt = at; } // moving the date isn't an "edit"
+      if (n.text !== text) { n.text = text; n.updatedAt = now; }
+    } else {
+      const when = at || now;
+      Data.s.notes.push({ id: uid(), accountId: accId, repId, text, createdAt: when, updatedAt: when });
+    }
     if (repId) { Store.save(); Modal.close(); App.refresh(); return; }
     Store.save(); Modal.close(); App.refresh();
     if (!id && !location.hash.includes(accId)) Toast.show(`Note added to ${Data.account(accId)?.name}`, [{ label: 'Open', fn: () => (location.hash = '#/account/' + accId) }]);
