@@ -132,6 +132,13 @@ const IO = {
       return out;
     };
     const touched = new Set();
+    const changed = new Map(); // person id -> fields already changed by this import
+    // add a contact to an account by name-matching: links to someone you already have when it's clearly them
+    const addContactTo = (a, c) => {
+      const mine = Data.contactsOf(a).find((x) => (c.name && norm(x.name) === norm(c.name)) || (phoneDigits(c.phone).length >= 7 && phoneDigits(x.phone) === phoneDigits(c.phone)) || (c.email && norm(x.email) === norm(c.email)));
+      if (mine) { const p = Data.person(mine.personId); for (const k of PERSON_FIELDS) if (!p[k] && c[k]) p[k] = c[k]; if (!mine.role && c.role) a.contacts.find((l) => l.id === mine.id).role = c.role; return; }
+      a.contacts.push({ id: uid(), personId: Data.personFor(c).id, role: c.role || '' });
+    };
 
     // 1) Rows exported from Rounds (have an ID): the spreadsheet wins for every column it contains
     for (const r of idRows) {
@@ -140,7 +147,7 @@ const IO = {
       const first = !touched.has(a.id);
       touched.add(a.id);
       if (!first) { // extra row for the same account: only add contacts
-        for (const c of rowContacts(r)) if (!a.contacts.some((x) => norm(x.name) === norm(c.name) && x.phone === c.phone)) a.contacts.push({ id: uid(), ...c });
+        for (const c of rowContacts(r)) addContactTo(a, c);
         continue;
       }
       if (r.accountname) a.name = r.accountname;
@@ -156,8 +163,17 @@ const IO = {
       if (has('besttimes')) a.best = parseBestTimes(r.besttimes);
       if (has('archived')) a.archived = yn(r.archived) === 'yes';
       if ('contact1name' in r) {
-        const old = a.contacts;
-        a.contacts = rowContacts(r).map((c) => ({ id: old.find((x) => norm(x.name) === norm(c.name))?.id || uid(), ...c }));
+        // keep each person (and their other accounts) when the name still matches; the sheet wins for details,
+        // but a shared person changed on one account's row isn't changed back by another account's row
+        const old = Data.contactsOf(a);
+        a.contacts = rowContacts(r).map((c) => {
+          const prev = old.find((x) => norm(x.name) === norm(c.name)) || old.find((x) => c.phone && phoneDigits(x.phone) === phoneDigits(c.phone));
+          const p = prev ? Data.person(prev.personId) : Data.personFor(c);
+          const done = changed.get(p.id) || new Set();
+          for (const k of PERSON_FIELDS) if ((c[k] || '') !== (p[k] || '') && !done.has(k)) { p[k] = c[k] || ''; done.add(k); }
+          changed.set(p.id, done);
+          return { id: prev?.id || uid(), personId: p.id, role: c.role || '' };
+        });
       }
       if (r.notes && !s.notes.some((n) => n.accountId === a.id && n.text === r.notes)) s.notes.push({ id: uid(), accountId: a.id, text: r.notes, createdAt: now, updatedAt: now });
     }
@@ -178,11 +194,7 @@ const IO = {
       if (!Data.rep(a.repId) && (r.breakthrurep || r.rep)) a.repId = Data.repFor(r.breakthrurep || r.rep);
       const f = parseInt(r.visitevery || r.visiteverydays || r.frequency, 10);
       if (!a.freqDays && f > 0) a.freqDays = f;
-      for (const c of rowContacts(r)) {
-        const dup = a.contacts.some((x) => (c.name && norm(x.name) === norm(c.name)) || (c.phone && x.phone === c.phone) || (c.email && norm(x.email) === norm(c.email)));
-        if (!dup) a.contacts.push({ id: uid(), ...c });
-        else { const x = a.contacts.find((y) => c.name && norm(y.name) === norm(c.name)); if (x) { if (!x.instagram && c.instagram) x.instagram = c.instagram; if (!x.social && c.social) x.social = c.social; } }
-      }
+      for (const c of rowContacts(r)) addContactTo(a, c);
       for (const id of tagIds(r.tags)) { a.tags ||= []; if (!a.tags.includes(id)) a.tags.push(id); }
       if (!a.lunch && yn(r.openforlunch || r.lunch)) a.lunch = yn(r.openforlunch || r.lunch);
       if (yn(r.openmondays || r.mondays) === 'no' && !a.hours.mon) a.hours.mon = { closed: true };
@@ -250,7 +262,8 @@ IO.exportSheet = async function () {
     const hours = DAY_ORDER.filter((d) => a.hours[d]).map((d) => `${DAY_LABEL[d]}: ${a.hours[d].closed ? 'Closed' : `${a.hours[d].from || ''}-${a.hours[d].to || ''}`}`).join('; ');
     const best = DAY_ORDER.filter((d) => (a.best[d] || []).length).map((d) => `${DAY_LABEL[d]}: ${a.best[d].map((x) => SLOT_LABEL[x]).join(', ')}`).join('; ');
     const row = [a.id, a.name, a.type || '', a.address || '', Data.route(a.routeId)?.name || '', a.tier || '', Data.repName(a), a.freqDays || '', Data.acctTags(a).map((t) => t.name).join(', '), yn(a.lunch), hours, best, a.archived ? 'Yes' : 'No'];
-    for (let i = 0; i < maxC; i++) { const c = a.contacts[i] || {}; row.push(c.name || '', c.role || '', c.phone || '', c.email || '', c.instagram ? '@' + c.instagram : '', c.social || ''); }
+    const cs = Data.contactsOf(a);
+    for (let i = 0; i < maxC; i++) { const c = cs[i] || {}; row.push(c.name || '', c.role || '', c.phone || '', c.email || '', c.instagram ? '@' + c.instagram : '', c.social || ''); }
     return row;
   });
   const wb = XLSX.utils.book_new();

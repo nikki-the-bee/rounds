@@ -70,18 +70,24 @@ const Forms = {
     Modal.open(formSheet('account', isNew ? 'New account' : 'Edit account', body, { id: a.id || '', submit: isNew ? 'Create' : 'Save' }), { cls: 'tall' });
   },
 
-  contact(accId, c) {
-    const isNew = !c; c = c || {};
+  /* c = existing contact on this account (edit), or opts.personId = add a person you already have */
+  contact(accId, c, opts = {}) {
+    const isNew = !c;
+    const person = opts.personId ? Data.person(opts.personId) : null;
+    c = c || (person ? { ...person, personId: person.id, role: '' } : {});
+    const shared = c.personId ? Data.accountsOfPerson(c.personId).filter((o) => o.id !== accId) : [];
     const body = `
       ${accId ? `<input type="hidden" name="accountId" value="${accId}">` : acctField('')}
-      <label class="field"><span>Name *</span><input type="text" name="name" value="${esc(c.name)}" ${isNew ? 'autofocus' : ''} autocomplete="off"></label>
-      <label class="field"><span>Role</span><input type="text" name="role" list="dl-roles" value="${esc(c.role)}" placeholder="Bar Manager, Owner…" autocomplete="off"></label>
+      <input type="hidden" name="personId" value="${esc(c.personId || '')}">
+      ${shared.length ? `<p class="hint" style="margin-top:0">${icon('link')} Also at ${shared.map((o) => esc(o.name)).join(', ')}. Name, phone, email and social links update everywhere. Role is just for this account.</p>` : ''}
+      <label class="field"><span>Name *</span><input type="text" name="name" value="${esc(c.name)}" ${isNew && !person ? 'autofocus' : ''} autocomplete="off"></label>
+      <label class="field"><span>Role${shared.length || person ? ' at this account' : ''}</span><input type="text" name="role" list="dl-roles" value="${esc(c.role)}" placeholder="Bar Manager, Owner…" autocomplete="off" ${person ? 'autofocus' : ''}></label>
       <label class="field"><span>Phone</span><input type="tel" name="phone" value="${esc(c.phone)}" autocomplete="off"></label>
       <label class="field"><span>Email</span><input type="email" name="email" value="${esc(c.email)}" autocomplete="off"></label>
       <label class="field"><span>Instagram</span><input type="text" name="instagram" value="${c.instagram ? '@' + esc(c.instagram) : ''}" autocomplete="off" autocapitalize="off" placeholder="@handle"></label>
       <label class="field"><span>Other social (optional)</span><input type="text" name="social" value="${esc(c.social)}" autocomplete="off" autocapitalize="off" placeholder="Link to Facebook, TikTok, LinkedIn…"></label>
       ${datalist('dl-roles', Data.roles())}`;
-    Modal.open(formSheet('contact', isNew ? 'Add contact' : 'Edit contact', body, { id: c.id || '', del: isNew ? '' : 'deleteContact', extra: `data-acc="${esc(accId || '')}"` }));
+    Modal.open(formSheet('contact', person ? `Add ${person.name || 'contact'}` : isNew ? 'New contact' : 'Edit contact', body, { id: isNew ? '' : c.id, del: isNew ? '' : 'deleteContact', extra: `data-acc="${esc(accId || '')}"` }));
   },
 
   note({ accountId, repId, note } = {}) {
@@ -265,22 +271,41 @@ const FORMS = {
     if (id) { a = Data.account(id); Object.assign(a, fields); }
     else {
       a = { id: uid(), createdAt: new Date().toISOString(), archived: false, contacts: [], placements: [], hours: {}, best: {}, ...fields };
-      const c = { name: val(fd, 'cName'), role: val(fd, 'cRole'), phone: val(fd, 'cPhone'), email: val(fd, 'cEmail') };
-      if (c.name || c.phone || c.email) a.contacts.push({ id: uid(), ...c });
+      const c = { name: val(fd, 'cName'), phone: val(fd, 'cPhone'), email: val(fd, 'cEmail') };
+      if (c.name || c.phone || c.email) a.contacts.push({ id: uid(), personId: Data.personFor(c).id, role: val(fd, 'cRole') });
       s.accounts.push(a);
     }
     Store.save();
     Modal.close().then(() => { if (!id) location.hash = '#/account/' + a.id; else App.refresh(); });
   },
-  contact(form, fd) {
-    const a = Data.account(fd.get('accountId'));
+  async contact(form, fd) {
+    const s = Data.s, a = Data.account(fd.get('accountId'));
     if (!a) return Toast.show('Choose an account');
-    const c = { name: val(fd, 'name'), role: val(fd, 'role'), phone: val(fd, 'phone'), email: val(fd, 'email'), instagram: igHandle(val(fd, 'instagram')), social: val(fd, 'social') };
-    if (!c.name && !c.phone && !c.email && !c.instagram) return Toast.show('Add at least a name, phone, email or Instagram');
-    const id = form.dataset.id;
-    if (id) Object.assign(a.contacts.find((x) => x.id === id), c); else a.contacts.push({ id: uid(), ...c });
+    const info = { name: val(fd, 'name'), phone: val(fd, 'phone'), email: val(fd, 'email'), instagram: igHandle(val(fd, 'instagram')), social: val(fd, 'social') };
+    const role = val(fd, 'role');
+    if (!info.name && !info.phone && !info.email && !info.instagram) return Toast.show('Add at least a name, phone, email or Instagram');
+    const linkId = form.dataset.id;
+    let personId = fd.get('personId') || '';
+    if (linkId) { // editing: person details change everywhere, role only here
+      const l = a.contacts.find((x) => x.id === linkId);
+      Object.assign(Data.person(l.personId), info);
+      l.role = role;
+    } else {
+      if (!personId) { // brand-new contact: is it someone you already have?
+        const cands = Data.similarPeople(info).filter((p) => !a.contacts.some((l) => l.personId === p.id));
+        if (cands.length) {
+          const pick = await askSamePerson(cands, info);
+          if (pick === null) return;
+          personId = pick;
+        }
+      }
+      if (personId) { const p = Data.person(personId); for (const k of PERSON_FIELDS) if (info[k]) p[k] = info[k]; }
+      else { const p = { id: uid(), ...info }; s.people.push(p); personId = p.id; }
+      if (a.contacts.some((l) => l.personId === personId)) { Store.save(); Modal.close(); App.refresh(); return Toast.show(`${info.name || 'They'} are already on ${a.name}`); }
+      a.contacts.push({ id: uid(), personId, role });
+    }
     Store.save(); Modal.close(); App.refresh();
-    if (!id && !form.dataset.acc) Toast.show(`Contact added to ${a.name}`, [{ label: 'Open', fn: () => (location.hash = '#/account/' + a.id) }]);
+    if (!linkId && !form.dataset.acc) Toast.show(`Contact added to ${a.name}`, [{ label: 'Open', fn: () => (location.hash = '#/account/' + a.id) }]);
   },
   note(form, fd) {
     const text = val(fd, 'text'), accId = fd.get('accountId') || '', repId = fd.get('repId') || '';
@@ -467,4 +492,17 @@ function setOppStatus(o, status) {
   }
   commit();
   if (msg) Toast.show(msg);
+}
+
+/* "Same person as …?" when a new contact matches someone you already have. Resolves to a person id,
+   '' for "someone new", or null for cancel. */
+function askSamePerson(cands, info) {
+  return new Promise((res) => {
+    const desc = (p) => esc([Data.accountsOfPerson(p.id).map((a) => a.name).join(', '), p.phone, p.email].filter(Boolean).join(' · '));
+    Modal.open(`${modalHead('Someone you already have?')}<div class="modal-body">
+      <p style="margin-top:0">${esc(info.name || 'This contact')} looks like:</p>
+      ${cands.slice(0, 4).map((p) => `<button class="quick" style="width:100%;margin-bottom:8px" data-act="modalResolve" data-val="${p.id}"><b>Yes, ${esc(p.name || 'this person')}</b><small>${desc(p)}</small></button>`).join('')}
+      <button class="quick" style="width:100%" data-act="modalResolve" data-val="__new"><b>No, someone new</b><small>Add as a separate contact</small></button>
+      </div>`, { onClose: (v) => res(v === undefined ? null : v === '__new' ? '' : v) });
+  });
 }

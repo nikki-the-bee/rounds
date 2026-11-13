@@ -303,3 +303,5 @@ select.mini.on{border-color:var(--accent);color:var(--accent)}
   .scroll-x{flex-wrap:wrap;overflow:visible}
   select.mini{max-width:320px}
 }
+
+.row-sub .ic{width:13px;height:13px;vertical-align:-2px}

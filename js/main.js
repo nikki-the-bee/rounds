@@ -145,11 +145,18 @@ const ACT = {
   showArchived() { Object.assign(UI.accounts, { archived: 'archived', showFilters: true }); UI.save(); location.hash = '#/accounts'; },
 
   addContact(el) { Forms.contact(el.dataset.acc); },
-  editContact(el) { const a = findAcc(el); const c = a.contacts.find((x) => x.id === el.dataset.id); if (c) Forms.contact(a.id, c); },
+  editContact(el) { const a = findAcc(el); const c = Data.contactsOf(a).find((x) => x.id === el.dataset.id); if (c) Forms.contact(a.id, c); },
+  async addExistingContact(el) {
+    const a = findAcc(el);
+    const pid = await Picker.person({ exclude: a.contacts.map((l) => l.personId), title: `Add to ${a.name}` });
+    if (pid) Forms.contact(a.id, null, { personId: pid });
+  },
   async deleteContact(el) {
     const form = el.closest('form'); const a = Data.account(form.dataset.acc || form.accountId.value);
-    if (!(await confirmBox('Remove this contact?', { ok: 'Remove', danger: true }))) return;
-    a.contacts = a.contacts.filter((x) => x.id !== el.dataset.id);
+    const c = Data.contactsOf(a).find((x) => x.id === el.dataset.id); if (!c) return;
+    const others = Data.accountsOfPerson(c.personId).filter((o) => o.id !== a.id);
+    if (!(await confirmBox(`Remove ${c.name || 'this contact'} from ${a.name}?${others.length ? ` They'll stay on ${others.map((o) => o.name).join(', ')}.` : ''}`, { ok: 'Remove', danger: true }))) return;
+    Data.unlinkContact(Data.account(a.id), c.id);
     Modal.close(); commit();
   },
 
@@ -406,6 +413,7 @@ const INPUT = {
   acctSearch: debounce((el) => { UI.accounts.q = el.value; $('#acctList').innerHTML = Pages.accountsList(); }, 150),
   prodSearch: debounce((el) => { UI.products.q = el.value; $('#prodTree').innerHTML = Pages.productTree(); }, 150),
   pickAcctSearch: debounce((el) => { Picker._acct.q = el.value; $('#pickAcctList').innerHTML = Picker.acctList(); }, 100),
+  pickPersonSearch: debounce((el) => { Picker._person.q = el.value; $('#pickPersonList').innerHTML = Picker.personList(); }, 100),
   pickProdSearch: debounce((el) => { Picker._prod.q = el.value; $('#pickProdTree').innerHTML = Picker.prodTree(); }, 150),
 };
 function debounce(fn, ms) { let t; return (el) => { clearTimeout(t); t = setTimeout(() => fn(el), ms); }; }

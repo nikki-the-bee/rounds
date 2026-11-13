@@ -249,20 +249,21 @@ const Pages = {
     </div>`;
 
     // Contacts
-    const contacts = `<div class="card"><h2>Contacts <span class="spacer"></span><button class="btn small" data-act="addContact" data-acc="${a.id}">${icon('plus')} Add</button></h2>
-      ${a.contacts.length ? a.contacts.map((c) => `<div class="contact">
+    const contacts = `<div class="card"><h2>Contacts <span class="spacer"></span>${s.people.some((p) => !a.contacts.some((l) => l.personId === p.id)) ? `<button class="btn small" data-act="addExistingContact" data-acc="${a.id}">${icon('users')} Existing</button>` : ''}<button class="btn small" data-act="addContact" data-acc="${a.id}">${icon('plus')} New</button></h2>
+      ${a.contacts.length ? Data.contactsOf(a).map((c) => { const also = Data.accountsOfPerson(c.personId).filter((o) => o.id !== a.id); return `<div class="contact">
         <div class="contact-main" data-act="editContact" data-acc="${a.id}" data-id="${c.id}">
           <div class="row-title">${esc(c.name || 'Unnamed')}</div>
           <div class="row-sub">${[esc(c.role), c.phone ? `<span style="white-space:nowrap">${esc(c.phone)}</span>` : ''].filter(Boolean).join(' · ')}</div>
           ${c.email ? `<div class="row-sub">${esc(c.email)}</div>` : ''}
           ${c.instagram ? `<div class="row-sub">@${esc(c.instagram)}</div>` : ''}
+          ${also.length ? `<div class="row-sub">${icon('link')} Also at ${also.map((o) => `<a href="#/account/${o.id}">${esc(o.name)}</a>`).join(', ')}</div>` : ''}
         </div>
         <div class="contact-actions">
           ${c.phone ? `<a class="icon-btn" href="${telHref(c.phone)}" aria-label="Call">${icon('phone')}</a><a class="icon-btn" href="${smsHref(c.phone)}" aria-label="Text">${icon('msg')}</a>` : ''}
           ${c.email ? `<a class="icon-btn" ${mailAttrs(c.email)} aria-label="Email">${icon('mail')}</a>` : ''}
           ${c.instagram ? `<a class="icon-btn" href="${esc(igHref(c.instagram))}" target="_blank" rel="noopener" aria-label="Instagram">${icon('instagram')}</a>` : ''}
           ${c.social ? `<a class="icon-btn" href="${esc(socialHref(c.social))}" target="_blank" rel="noopener" aria-label="Other social">${icon('link')}</a>` : ''}
-        </div></div>`).join('') : '<div class="muted small">No contacts yet.</div>'}
+        </div></div>`; }).join('') : '<div class="muted small">No contacts yet.</div>'}
     </div>`;
 
     // Priorities

@@ -27,7 +27,7 @@ const Store = (() => {
   }
   /* Change stamps: every record gets _mt (last modified time) whenever its contents change.
      Sync uses these to decide which edit is newer when two devices change the same thing. */
-  const RECORD_LISTS = ['accounts', 'notes', 'priorities', 'visits', 'opportunities', 'routes', 'products', 'linkGroups'];
+  const RECORD_LISTS = ['accounts', 'notes', 'priorities', 'visits', 'opportunities', 'routes', 'products', 'linkGroups', 'people'];
   let sigs = new Map();
   function eachRecord(s, fn) {
     for (const k of RECORD_LISTS) for (const r of s[k] || []) fn(k, r);
@@ -67,7 +67,7 @@ const Store = (() => {
         emailApp: 'outlook',
         roles: ['Owner', 'General Manager', 'Bar Manager', 'Beverage Director', 'Bartender', 'Chef', 'Purchasing', 'F&B Director'],
       },
-      routes: [], products: [], accounts: [], notes: [], priorities: [], visits: [], opportunities: [], linkGroups: [],
+      routes: [], products: [], accounts: [], notes: [], priorities: [], visits: [], opportunities: [], linkGroups: [], people: [],
     };
   }
   function migrate(s) {
@@ -75,7 +75,7 @@ const Store = (() => {
     s = s && typeof s === 'object' ? s : d;
     s.settings = { ...d.settings, ...(s.settings || {}) };
     if (!s.settings.typesV2) { s.settings.accountTypes = s.settings.accountTypes.filter((t) => t !== 'Brewery / Taproom'); s.settings.typesV2 = true; }
-    for (const k of ['routes', 'products', 'accounts', 'notes', 'priorities', 'visits', 'opportunities', 'linkGroups']) if (!Array.isArray(s[k])) s[k] = [];
+    for (const k of ['routes', 'products', 'accounts', 'notes', 'priorities', 'visits', 'opportunities', 'linkGroups', 'people']) if (!Array.isArray(s[k])) s[k] = [];
     // tidy link groups: drop missing accounts, and groups with fewer than 2 accounts
     const ids = new Set(s.accounts.map((a) => a.id));
     s.linkGroups = s.linkGroups.filter((g) => { g.accountIds = (g.accountIds || []).filter((id) => ids.has(id)); return g.accountIds.length > 1; });
@@ -90,8 +90,35 @@ const Store = (() => {
       }
       delete a.rep;
     }
+    migratePeople(s);
     syncCatalog(s);
     return s;
+  }
+  /* Contacts are shared "people": each account keeps links { id, personId, role } and the person's
+     name/phone/email/socials live once in s.people, so an update shows on every account.
+     Older contacts (details stored on the account) are converted here. People with the same name
+     AND the same phone or email become one person. IDs are derived from the old contact IDs so
+     every device converts the same data the same way. */
+  function migratePeople(s) {
+    const F = PERSON_FIELDS;
+    const byId = new Map(s.people.map((p) => [p.id, p]));
+    const fill = (p, c) => { for (const k of F) if (!p[k] && c[k]) p[k] = c[k]; };
+    for (const a of s.accounts) {
+      a.contacts = a.contacts.map((c) => {
+        if (c.personId) {
+          let p = byId.get(c.personId);
+          if (!p) { p = { id: c.personId }; F.forEach((k) => (p[k] = c[k] || '')); s.people.push(p); byId.set(p.id, p); }
+          else fill(p, c); // an older app version may have written details onto the link
+          return { id: c.id, personId: c.personId, role: c.role || '' };
+        }
+        let p = s.people.find((x) => samePerson(x, c));
+        if (p) fill(p, c);
+        else { p = { id: 'p_' + c.id }; F.forEach((k) => (p[k] = c[k] || '')); s.people.push(p); byId.set(p.id, p); }
+        return { id: c.id, personId: p.id, role: c.role || '' };
+      });
+    }
+    const used = new Set(s.accounts.flatMap((a) => a.contacts.map((l) => l.personId)));
+    s.people = s.people.filter((p) => used.has(p.id));
   }
   /* Merge the built-in product list into saved data without losing anything:
      - catalog products are added/updated by their permanent ID
@@ -249,6 +276,30 @@ const Data = {
   },
   types() { return uniqSorted([...this.s.settings.accountTypes, ...this.s.accounts.map((a) => a.type)]); },
   roles() { return uniqSorted([...this.s.settings.roles, ...this.s.accounts.flatMap((a) => a.contacts.map((c) => c.role))]); },
+  person(id) { return this.s.people.find((p) => p.id === id); },
+  /* an account's contacts with each person's details filled in */
+  contactsOf(a) {
+    return a.contacts.map((l) => { const p = this.person(l.personId) || {}; return { id: l.id, personId: l.personId, role: l.role || '', name: p.name || '', phone: p.phone || '', email: p.email || '', instagram: p.instagram || '', social: p.social || '' }; });
+  },
+  accountsOfPerson(pid) { return this.s.accounts.filter((a) => a.contacts.some((l) => l.personId === pid)); },
+  /* loose match for "is this someone you already have?" (name, phone or email) */
+  similarPeople(info) {
+    const n = norm(info.name), d = phoneDigits(info.phone), e = norm(info.email);
+    return this.s.people.filter((p) => (n && norm(p.name) === n) || (d.length >= 7 && phoneDigits(p.phone) === d) || (e && norm(p.email) === e));
+  },
+  /* strict match used by imports: same name + same phone/email, else a new person */
+  personFor(info) {
+    let p = this.s.people.find((x) => samePerson(x, info));
+    if (p) { for (const k of PERSON_FIELDS) if (!p[k] && info[k]) p[k] = info[k]; return p; }
+    p = { id: uid() }; PERSON_FIELDS.forEach((k) => (p[k] = info[k] || '')); this.s.people.push(p);
+    return p;
+  },
+  /* remove a contact from one account; the person is deleted only if no account uses them */
+  unlinkContact(a, linkId) {
+    const l = a.contacts.find((x) => x.id === linkId); if (!l) return;
+    a.contacts = a.contacts.filter((x) => x.id !== linkId);
+    if (!this.accountsOfPerson(l.personId).length) this.s.people = this.s.people.filter((p) => p.id !== l.personId);
+  },
   sortPriorities(list, mode = 'importance') {
     const imp = (p) => IMPORTANCE[p.importance]?.rank ?? 1;
     const copy = list.slice();
@@ -265,7 +316,7 @@ const Data = {
   searchText(a) {
     const s = this.s;
     const parts = [a.name, a.type, a.address, this.route(a.routeId)?.name, a.tier ? 'tier ' + a.tier : '', this.repName(a), ...this.acctTags(a).map((t) => t.name)];
-    a.contacts.forEach((c) => parts.push(c.name, c.role, c.phone, c.email, c.instagram, c.social));
+    this.contactsOf(a).forEach((c) => parts.push(c.name, c.role, c.phone, c.email, c.instagram, c.social));
     a.placements.forEach((pl) => { const p = this.product(pl.productId); if (p) parts.push(p.brand, p.name, p.size); parts.push(pl.cocktailName, pl.competitor, pl.notes); });
     s.notes.forEach((n) => { if (n.accountId === a.id) parts.push(n.text); });
     s.priorities.forEach((p) => { if (p.accountId === a.id) parts.push(p.text); });
@@ -281,4 +332,14 @@ function stableStr(v) {
   if (Array.isArray(v)) return '[' + v.map(stableStr).join(',') + ']';
   if (v && typeof v === 'object') return '{' + Object.keys(v).filter((k) => k !== '_mt' && v[k] !== undefined).sort().map((k) => JSON.stringify(k) + ':' + stableStr(v[k])).join(',') + '}';
   return JSON.stringify(v === undefined ? null : v);
+}
+
+const PERSON_FIELDS = ['name', 'phone', 'email', 'instagram', 'social'];
+function phoneDigits(v) { return String(v || '').replace(/\D/g, '').slice(-10); }
+/* same name AND same phone or email */
+function samePerson(p, c) {
+  const n = String(c.name || '').trim().toLowerCase();
+  if (!n || String(p.name || '').trim().toLowerCase() !== n) return false;
+  const d = phoneDigits(c.phone), e = String(c.email || '').trim().toLowerCase();
+  return (d.length >= 7 && phoneDigits(p.phone) === d) || (!!e && String(p.email || '').trim().toLowerCase() === e);
 }

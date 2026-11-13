@@ -147,6 +147,23 @@ const Picker = {
     if (!list.length) return h + '<div class="empty">No matching accounts</div>';
     return h + `<div class="list">${!st.multi && !ws.length && h ? '<div class="group-head">All accounts</div>' : ''}${list.map(row).join('')}</div>`;
   },
+  _person: null,
+  person({ title = 'Add existing contact', exclude = [] } = {}) {
+    return new Promise((res) => {
+      this._person = { exclude: new Set(exclude), q: '' };
+      Modal.open(`${modalHead(title)}<div class="modal-body">
+          <div class="search" style="margin-bottom:10px">${icon('search')}<input type="search" placeholder="Search name, phone, email or account" data-input="pickPersonSearch" autofocus></div>
+          <div id="pickPersonList">${this.personList()}</div></div>`, { onClose: res, cls: 'tall' });
+    });
+  },
+  personList() {
+    const st = this._person, ws = words(st.q);
+    let list = sortBy(Data.s.people.filter((p) => !st.exclude.has(p.id)), (p) => norm(p.name));
+    const where = (p) => Data.accountsOfPerson(p.id).map((a) => { const l = a.contacts.find((x) => x.personId === p.id); return a.name + (l?.role ? ` (${l.role})` : ''); });
+    if (ws.length) list = list.filter((p) => matchesAll([p.name, p.phone, p.email, p.instagram, ...where(p)].join(' '), ws));
+    if (!list.length) return '<div class="empty">No matching contacts</div>';
+    return `<div class="list">${list.map((p) => `<div class="row" data-act="modalResolve" data-val="${p.id}"><div class="row-main"><div class="row-title">${esc(p.name || 'Unnamed')}</div><div class="row-sub">${esc(where(p).join(' · '))}</div>${p.phone || p.email ? `<div class="row-sub">${esc([p.phone, p.email].filter(Boolean).join(' · '))}</div>` : ''}</div></div>`).join('')}</div>`;
+  },
   products({ title = 'Add products', exclude = new Map() } = {}) {
     return new Promise((res) => {
       if (!Data.liveProducts().length) {
