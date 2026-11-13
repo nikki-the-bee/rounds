@@ -61,7 +61,7 @@ const Store = (() => {
         theme: 'midnight',
         defaultFreq: 14,
         lastBackup: null,
-        accountTypes: ['Bar', 'Restaurant', 'Country Club', 'Hotel', 'Nightclub', 'Brewery / Taproom', 'Event Venue', 'Golf Course', 'Casino', 'Other'],
+        accountTypes: ['Bar', 'Restaurant', 'Country Club', 'Hotel', 'Nightclub', 'Event Venue', 'Golf Course', 'Casino', 'Other'],
         tags: [],
         reps: [],
         emailApp: 'outlook',
@@ -74,6 +74,7 @@ const Store = (() => {
     const d = defaults();
     s = s && typeof s === 'object' ? s : d;
     s.settings = { ...d.settings, ...(s.settings || {}) };
+    if (!s.settings.typesV2) { s.settings.accountTypes = s.settings.accountTypes.filter((t) => t !== 'Brewery / Taproom'); s.settings.typesV2 = true; }
     for (const k of ['routes', 'products', 'accounts', 'notes', 'priorities', 'visits', 'opportunities']) if (!Array.isArray(s[k])) s[k] = [];
     s.accounts.forEach((a) => { a.contacts ||= []; a.placements ||= []; a.hours ||= {}; a.best ||= {}; a.tags ||= []; });
     // reps used to be free text on each account: turn them into one shared list

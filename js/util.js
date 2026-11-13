@@ -63,7 +63,8 @@ function plural(n, w, p) { return `${n} ${n === 1 ? w : (p || w + 's')}`; }
 function telHref(p) { return 'tel:' + String(p).replace(/[^\d+]/g, ''); }
 function smsHref(p) { return 'sms:' + String(p).replace(/[^\d+]/g, ''); }
 /* Email links. With the "outlook" setting: Android opens the Outlook app directly (falls back to
-   Outlook on the web if the app isn't installed), iPhone uses Outlook's link, computers open Outlook on the web. */
+   Outlook on the web if the app isn't installed), iPhone uses Outlook's link, and computers hand the
+   email to the desktop mail app (Outlook, once it's set as the computer's default email app). */
 function mailAttrs(email) {
   const mode = (typeof Store !== 'undefined' && Store.state?.settings?.emailApp) || 'outlook';
   const e = String(email || '').trim();
@@ -73,7 +74,7 @@ function mailAttrs(email) {
   const ua = navigator.userAgent;
   if (/Android/i.test(ua)) return `href="${esc(`intent:${e}#Intent;scheme=mailto;package=com.microsoft.office.outlook;S.browser_fallback_url=${encodeURIComponent(web)};end`)}"`;
   if (/iPhone|iPad/i.test(ua)) return `href="${esc('ms-outlook://compose?to=' + encodeURIComponent(e))}"`;
-  return `href="${esc(web)}" target="_blank" rel="noopener"`;
+  return `href="mailto:${esc(e)}"`;
 }
 /* "@dane", "dane", or "instagram.com/dane/" -> "dane" */
 function igHandle(v) {

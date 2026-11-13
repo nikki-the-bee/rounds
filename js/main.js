@@ -17,6 +17,9 @@ const ROUTES = [
 
 const App = {
   navDepth: 0,
+  scrolls: {},       // scroll position of each page, restored when you come back to it
+  lastHash: null,
+  fromTab: false,    // set when a bottom/side tab is tapped: those always open at the top
   render(keepScroll) {
     const h = location.hash || '#/visits';
     let r = null;
@@ -29,7 +32,12 @@ const App = {
     $('#topActions').innerHTML = r.actions || '';
     $('#view').innerHTML = r.html;
     $$('#nav a').forEach((a) => a.classList.toggle('active', a.dataset.tab === r.tab));
-    window.scrollTo(0, keepScroll ? y : 0);
+    let target = 0;
+    if (keepScroll) target = y;
+    else if (!this.fromTab && this.scrolls[h] != null) target = this.scrolls[h];
+    this.fromTab = false;
+    window.scrollTo(0, target);
+    this.lastHash = h;
   },
   refresh() { this.render(true); },
   currentAccountId() { const m = location.hash.match(/^#\/account\/([\w-]+)$/); return m ? m[1] : ''; },
@@ -398,7 +406,14 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { const f = Modal.top()?.querySelector('form'); if (f) f.requestSubmit(); }
 });
 window.addEventListener('popstate', () => { Modal.onPop(); });
+window.addEventListener('scroll', () => { if (App.lastHash) App.scrolls[App.lastHash] = window.scrollY; }, { passive: true });
 window.addEventListener('hashchange', () => { App.navDepth++; Toast.hide(); App.render(false); });
+// tapping a tab: open that page at the top (and if you're already there, scroll back up)
+$('#nav').addEventListener('click', (e) => {
+  const a = e.target.closest('a[href]'); if (!a) return;
+  App.fromTab = true;
+  if (a.getAttribute('href') === location.hash) { App.fromTab = false; window.scrollTo({ top: 0, behavior: 'smooth' }); }
+});
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') { Store.flush(); if (Sync.on && Sync.timer) Sync.run(); }
   else { if (!Modal.stack.length) App.refresh(); if (Sync.on && (!Sync.cfg.lastAt || Date.now() - new Date(Sync.cfg.lastAt) > 20000)) Sync.run(); }
