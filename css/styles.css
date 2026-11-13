@@ -297,3 +297,9 @@ select.mini.on{border-color:var(--accent);color:var(--accent)}
 [data-theme^=neon] .st-overdue{color:var(--danger)}[data-theme^=neon] .st-due{color:var(--warn)}[data-theme^=neon] .st-ok{color:var(--ok)}
 [data-theme^=neon] .card,[data-theme^=neon] .list{border-color:color-mix(in srgb,var(--accent) 22%,var(--border))}
 [data-theme^=neon] .theme.on{box-shadow:0 0 12px var(--accent)}
+
+/* mouse/trackpad devices: wrap chip rows instead of sideways scrolling (no swipe gesture on desktop) */
+@media (hover:hover) and (pointer:fine){
+  .scroll-x{flex-wrap:wrap;overflow:visible}
+  select.mini{max-width:320px}
+}
