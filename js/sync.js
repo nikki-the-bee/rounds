@@ -7,7 +7,7 @@
 const SYNC_FILE = 'rounds-data.json';
 
 const SyncMerge = {
-  LISTS: ['accounts', 'notes', 'priorities', 'visits', 'opportunities', 'routes', 'products'],
+  LISTS: ['accounts', 'notes', 'priorities', 'visits', 'opportunities', 'routes', 'products', 'linkGroups'],
   same(a, b) { return stableStr(a) === stableStr(b); },
   /* field by field: whichever side changed a field wins; if both changed it, the newer edit wins */
   record(b, l, r) {

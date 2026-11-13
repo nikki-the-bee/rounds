@@ -74,15 +74,22 @@ const ACT = {
   modalClose() { Modal.close(); },
   modalResolve(el) { Modal.close(el.dataset.val); },
 
-  checkIn(el) {
+  async checkIn(el) {
     const a = Data.account(el.dataset.id); if (!a) return;
-    const v = { id: uid(), accountId: a.id, at: new Date().toISOString(), note: '' };
+    const at = new Date().toISOString();
+    const v = { id: uid(), accountId: a.id, at, note: '' };
     Data.s.visits.push(v);
     commit();
-    Toast.show(`Checked in at ${a.name}`, [
+    const extra = await askLinkedCheckins(a, at);
+    const all = [v, ...extra];
+    Toast.show(extra.length ? `Checked in at ${a.name} + ${plural(extra.length, 'nearby account')}` : `Checked in at ${a.name}`, [
       { label: 'Add note', fn: () => Forms.visit({ visit: v }) },
-      { label: 'Undo', fn: () => { Data.s.visits = Data.s.visits.filter((x) => x.id !== v.id); commit(); } },
+      { label: 'Undo', fn: () => { const ids = new Set(all.map((x) => x.id)); Data.s.visits = Data.s.visits.filter((x) => !ids.has(x.id)); commit(); } },
     ], 7000);
+  },
+  linkCheckinsDone() {
+    const box = Modal.top();
+    Modal.close($$('input[name=linkedCheckin]:checked', box).map((x) => x.value));
   },
   logVisit(el) { Forms.visit({ accountId: el.dataset.acc || App.currentAccountId() }); },
   editVisit(el) { const v = Data.s.visits.find((x) => x.id === el.dataset.id); if (v) Forms.visit({ visit: v }); },
@@ -130,6 +137,7 @@ const ACT = {
     s.accounts = s.accounts.filter((x) => x.id !== a.id);
     for (const k of ['notes', 'visits', 'opportunities']) s[k] = s[k].filter((x) => x.accountId !== a.id);
     s.priorities = s.priorities.filter((x) => x.accountId !== a.id);
+    s.linkGroups = s.linkGroups.map((g) => ({ ...g, accountIds: g.accountIds.filter((id) => id !== a.id) })).filter((g) => g.accountIds.length > 1);
     Store.save();
     location.hash = '#/accounts';
     Toast.show('Account deleted');
@@ -318,6 +326,20 @@ const ACT = {
   backupNow() { IO.backup(); },
   exportSheet() { IO.exportSheet(); },
   syncSetup() { Forms.syncSetup(); },
+  addLink(el) { Forms.link(findAcc(el)); },
+  editLink(el) { const g = Data.s.linkGroups.find((x) => x.id === el.dataset.id); if (g) Forms.editLink(g); },
+  async deleteLink(el) {
+    if (!(await confirmBox('Remove this link? The accounts themselves are not changed.', { ok: 'Remove', danger: true }))) return;
+    Data.s.linkGroups = Data.s.linkGroups.filter((x) => x.id !== el.dataset.id);
+    Modal.close(); commit();
+  },
+  async pickLinkAccounts(el) {
+    const form = el.closest('form');
+    const ids = await Picker.account({ title: 'Link with…', multi: true, exclude: [el.dataset.acc] });
+    if (!ids?.length) return;
+    form.accountIds.value = ids.join(',');
+    el.textContent = ids.map((id) => Data.account(id)?.name).join(', ');
+  },
   syncNow() { Sync.run({ manual: true }); },
   async syncDisconnect() {
     if (!(await confirmBox('Turn off sync on this device? Your data stays on this device and in your repository; this device just stops syncing. You\'ll need the access key to turn it back on.', { ok: 'Turn off' }))) return;
@@ -364,6 +386,11 @@ const CHG = {
       if (!el.querySelector(`option[value="${r.id}"]`)) { const o = document.createElement('option'); o.value = r.id; o.textContent = r.name; el.insertBefore(o, el.lastElementChild); }
       el.value = r.id;
     } else el.value = '';
+  },
+  linkType(el) {
+    const own = el.value === 'ownership';
+    $('#ownerName').hidden = !own;
+    $('#linkHint').textContent = own ? 'Same owner or restaurant group. Shown on each account; no check-in prompt.' : 'Same building, or close enough that one conversation covers both. Checking in at one will offer to check in at the others.';
   },
   plCocktail(el) { $('#cocktailField').hidden = !el.checked; },
   hoursClosed(el) { const f = el.form, d = el.dataset.day; f['from_' + d].disabled = f['to_' + d].disabled = el.checked; },
@@ -445,3 +472,21 @@ document.addEventListener('visibilitychange', () => {
     }).catch((e) => console.warn('SW registration failed', e));
   }
 })();
+
+/* After checking in somewhere that has "Same proximity" links, offer to check in at those too */
+function askLinkedCheckins(a, at) {
+  const near = Data.nearby(a.id);
+  if (!near.length) return Promise.resolve([]);
+  return new Promise((res) => {
+    const lm = Data.lastVisitMap();
+    Modal.open(`${modalHead('Also check in nearby?')}<div class="modal-body">
+      <p style="margin-top:0">${esc(a.name)} is linked by proximity to:</p>
+      ${near.map((n) => `<label class="checkline"><input type="checkbox" name="linkedCheckin" value="${n.id}" checked><span><b>${esc(n.name)}</b><br><span class="small muted">${esc(Data.statusText(Data.status(n, lm)))}</span></span></label>`).join('')}
+      </div><div class="modal-foot"><button class="btn" data-act="modalClose">Just ${esc(a.name)}</button><button class="btn primary" data-act="linkCheckinsDone">Check in</button></div>`,
+    { onClose: (ids) => {
+      const made = (Array.isArray(ids) ? ids : []).map((id) => ({ id: uid(), accountId: id, at, note: '' }));
+      if (made.length) { Data.s.visits.push(...made); commit(); }
+      res(made);
+    } });
+  });
+}

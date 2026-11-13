@@ -27,7 +27,7 @@ const Store = (() => {
   }
   /* Change stamps: every record gets _mt (last modified time) whenever its contents change.
      Sync uses these to decide which edit is newer when two devices change the same thing. */
-  const RECORD_LISTS = ['accounts', 'notes', 'priorities', 'visits', 'opportunities', 'routes', 'products'];
+  const RECORD_LISTS = ['accounts', 'notes', 'priorities', 'visits', 'opportunities', 'routes', 'products', 'linkGroups'];
   let sigs = new Map();
   function eachRecord(s, fn) {
     for (const k of RECORD_LISTS) for (const r of s[k] || []) fn(k, r);
@@ -67,7 +67,7 @@ const Store = (() => {
         emailApp: 'outlook',
         roles: ['Owner', 'General Manager', 'Bar Manager', 'Beverage Director', 'Bartender', 'Chef', 'Purchasing', 'F&B Director'],
       },
-      routes: [], products: [], accounts: [], notes: [], priorities: [], visits: [], opportunities: [],
+      routes: [], products: [], accounts: [], notes: [], priorities: [], visits: [], opportunities: [], linkGroups: [],
     };
   }
   function migrate(s) {
@@ -75,7 +75,10 @@ const Store = (() => {
     s = s && typeof s === 'object' ? s : d;
     s.settings = { ...d.settings, ...(s.settings || {}) };
     if (!s.settings.typesV2) { s.settings.accountTypes = s.settings.accountTypes.filter((t) => t !== 'Brewery / Taproom'); s.settings.typesV2 = true; }
-    for (const k of ['routes', 'products', 'accounts', 'notes', 'priorities', 'visits', 'opportunities']) if (!Array.isArray(s[k])) s[k] = [];
+    for (const k of ['routes', 'products', 'accounts', 'notes', 'priorities', 'visits', 'opportunities', 'linkGroups']) if (!Array.isArray(s[k])) s[k] = [];
+    // tidy link groups: drop missing accounts, and groups with fewer than 2 accounts
+    const ids = new Set(s.accounts.map((a) => a.id));
+    s.linkGroups = s.linkGroups.filter((g) => { g.accountIds = (g.accountIds || []).filter((id) => ids.has(id)); return g.accountIds.length > 1; });
     s.accounts.forEach((a) => { a.contacts ||= []; a.placements ||= []; a.hours ||= {}; a.best ||= {}; a.tags ||= []; });
     // reps used to be free text on each account: turn them into one shared list
     s.settings.reps ||= [];
@@ -218,6 +221,14 @@ const Data = {
     if (!p) return 'Unknown product';
     const base = `${p.name}${p.size ? ' ' + p.size : ''}`;
     return withBrand && p.brand && !p.name.toLowerCase().startsWith(p.brand.toLowerCase()) ? `${p.brand} ${base}` : base;
+  },
+  LINK_TYPES: { proximity: 'Same proximity', ownership: 'Same ownership' },
+  linkGroups(accId) { return (this.s.linkGroups || []).filter((g) => g.accountIds.includes(accId)); },
+  /* other active accounts in the same proximity group(s): offered when checking in */
+  nearby(accId) {
+    const out = new Set();
+    for (const g of this.linkGroups(accId)) if (g.type === 'proximity') g.accountIds.forEach((id) => id !== accId && out.add(id));
+    return Array.from(out).map((id) => this.account(id)).filter((a) => a && !a.archived);
   },
   openPriorities(accId) { return this.s.priorities.filter((p) => p.accountId === accId && !p.done); },
   /* Products to offer: hides ones you removed, and discontinued ones (unless kept via keepIds) */

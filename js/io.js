@@ -285,7 +285,10 @@ IO.exportSheet = async function () {
   XLSX.utils.book_append_sheet(wb, acc, 'Accounts');
   XLSX.utils.book_append_sheet(wb, help, 'How to edit');
   XLSX.utils.book_append_sheet(wb, sum, 'Visit Status');
+  const linksS = XLSX.utils.aoa_to_sheet([['Account', 'Link Type', 'Group Name', 'Linked With'], ...s.linkGroups.flatMap((g) => g.accountIds.map((id) => [name(id), Data.LINK_TYPES[g.type], g.name || '', g.accountIds.filter((x) => x !== id).map(name).join(', ')]))]);
+  linksS['!cols'] = [30, 16, 26, 60].map((wch) => ({ wch }));
   XLSX.utils.book_append_sheet(wb, repsS, 'Breakthru Reps');
+  XLSX.utils.book_append_sheet(wb, linksS, 'Linked Accounts');
   XLSX.utils.book_append_sheet(wb, notes, 'Notes');
   XLSX.utils.book_append_sheet(wb, visits, 'Visits');
   XLSX.utils.book_append_sheet(wb, prios, 'Priorities');

@@ -102,6 +102,8 @@ const Pages = {
     const extra = [];
     if (!hideRoute && Data.route(a.routeId)) extra.push(esc(Data.routeName(a.routeId)));
     if (a.type) extra.push(esc(a.type));
+    const near = Data.nearby(a.id);
+    if (near.length) extra.push(`↔ ${near.map((o) => esc(o.name)).join(', ')}`);
     if (th) extra.push(th.open ? esc(th.text) : `<span class="red">${esc(th.text)}</span>`);
     if (best.length) extra.push(best.includes(slot) ? '<span class="good">★ Good time now</span>' : 'Best ' + best.map((b) => SLOT_LABEL[b].toLowerCase()).join('/'));
     else if (a.lunch === 'no' && slot !== 'evening') extra.push('No lunch service');
@@ -235,6 +237,8 @@ const Pages = {
       </div>
       ${a.address ? `<a class="addr" href="${mapHref(a.address)}" target="_blank" rel="noopener">${icon('map')}<span>${esc(a.address)}</span></a>` : ''}
       <div class="line">${statusDot(st)} ${esc(Data.statusText(st))}${st.last ? ` (${fmtDate(st.last.at)})` : ''} · every ${st.freq} days</div>
+      ${Data.nearby(a.id).length ? `<div class="line">${icon('map')} <span>Same proximity as ${Data.nearby(a.id).map((o) => `<a href="#/account/${o.id}">${esc(o.name)}</a>`).join(', ')}</span></div>` : ''}
+      ${Data.linkGroups(a.id).filter((g) => g.type === 'ownership').map((g) => `<div class="line">${icon('users')} <span>Same ownership${g.name ? ` (${esc(g.name)})` : ''}: ${g.accountIds.filter((id) => id !== a.id).map((id) => Data.account(id)).filter(Boolean).map((o) => `<a href="#/account/${o.id}">${esc(o.name)}</a>`).join(', ')}</span></div>`).join('')}
       ${Data.repName(a) ? `<div class="line">${icon('user')} Breakthru rep:&nbsp;<a href="#/rep/${a.repId}">${esc(Data.repName(a))}</a></div>` : `<div class="line">${icon('user')} Breakthru rep:&nbsp;<button class="link-btn" style="padding:0" data-act="editAccount" data-id="${a.id}">+ Add</button></div>`}
       <div class="action-row">
         <button class="btn primary" data-act="checkIn" data-id="${a.id}">${icon('check')}Check in</button>
@@ -334,6 +338,15 @@ const Pages = {
       ${vAll.length > 5 ? `<button class="link-btn" data-act="acctToggle" data-key="visitsAll">${ua.visitsAll ? 'Show fewer' : `Show all ${vAll.length} visits`}</button>` : ''}
     </div>`;
 
+    // Linked accounts
+    const lgroups = Data.linkGroups(a.id);
+    const linkRow = (o) => { const st2 = Data.status(o); return `<div class="contact" data-act="openAccount" data-id="${o.id}" style="cursor:pointer">${statusDot(st2)}<div class="contact-main"><div class="row-title">${esc(o.name)}${o.archived ? ' <span class="pill">Archived</span>' : ''}</div><div class="row-sub">${esc([Data.route(o.routeId)?.name, Data.statusText(st2)].filter(Boolean).join(' · '))}</div></div></div>`; };
+    const links = `<div class="card"><h2>Linked accounts <span class="spacer"></span><button class="btn small" data-act="addLink" data-acc="${a.id}">${icon('link')} Link</button></h2>
+      ${lgroups.length ? lgroups.map((g) => `<div class="pl-brand" style="display:flex;align-items:center;gap:8px;margin-top:8px">${g.type === 'proximity' ? icon('map') : icon('users')}<span>${esc(Data.LINK_TYPES[g.type])}${g.name ? ': ' + esc(g.name) : ''}</span><span class="spacer"></span><button class="link-btn" style="padding:0;font-size:12px;text-transform:none;letter-spacing:0" data-act="editLink" data-id="${g.id}">Edit</button></div>
+        ${g.accountIds.filter((id) => id !== a.id).map((id) => Data.account(id)).filter(Boolean).map(linkRow).join('')}
+        ${g.type === 'proximity' ? '<div class="small muted" style="margin:2px 0 6px">Checking in here offers to check in at these too.</div>' : ''}`).join('') : '<div class="muted small">Link accounts in the same building or close enough to cover in one stop (Same proximity), or under the same owner (Same ownership).</div>'}
+    </div>`;
+
     const danger = `<div class="danger-zone">
       <button class="btn" data-act="archiveAccount" data-id="${a.id}">${icon('archive')} ${a.archived ? 'Restore from archive' : 'Archive account'}</button>
       <button class="btn danger" data-act="deleteAccount" data-id="${a.id}">${icon('trash')} Delete</button>
@@ -342,7 +355,7 @@ const Pages = {
     return {
       title: a.name, back: true, tab: 'accounts',
       actions: `<button class="btn small" data-act="editAccount" data-id="${a.id}">${icon('edit')} Edit</button>`,
-      html: head + `<div class="acct-grid"><div>${prios}${contacts}${notes}${visits}</div><div>${products}${oppsCard}${hours}</div></div>` + danger,
+      html: head + `<div class="acct-grid"><div>${prios}${contacts}${notes}${visits}</div><div>${products}${oppsCard}${hours}${links}</div></div>` + danger,
     };
   },
   prioRow(p, showAccount) {

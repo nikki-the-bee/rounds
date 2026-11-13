@@ -4,6 +4,7 @@ const Modal = {
   stack: [],
   queue: [],
   open(html, opts = {}) {
+    Toast.hide();
     const wrap = document.createElement('div');
     wrap.className = 'modal-wrap';
     wrap.innerHTML = `<div class="modal ${opts.cls || ''}" role="dialog" aria-modal="true">${html}</div>`;

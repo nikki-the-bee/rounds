@@ -210,6 +210,29 @@ const Forms = {
       </div><div class="modal-foot"><button class="btn danger" data-act="deleteProduct" data-id="${p.id}">${icon('trash')} ${p.builtin ? 'Remove from list' : 'Delete product'}</button><button class="btn" data-act="modalClose">Close</button></div>`);
   },
 
+  /* add links from an account: pick type, then accounts */
+  link(acc) {
+    const s = Data.s;
+    const own = Data.linkGroups(acc.id).find((g) => g.type === 'ownership');
+    const owners = s.linkGroups.filter((g) => g.type === 'ownership' && g.name).map((g) => g.name);
+    const body = `<p class="small muted" style="margin-top:0">Linking <b>${esc(acc.name)}</b> with other accounts.</p>
+      <div class="field"><span>How are they linked?</span><div class="seg">
+        <label><input type="radio" name="type" value="proximity" checked data-chg="linkType"><span>Same proximity</span></label>
+        <label><input type="radio" name="type" value="ownership" data-chg="linkType"><span>Same ownership</span></label></div></div>
+      <p class="hint" id="linkHint">Same building, or close enough that one conversation covers both. Checking in at one will offer to check in at the others.</p>
+      <label class="field" id="ownerName" hidden><span>Ownership group name (optional)</span><input type="text" name="name" list="dl-owners" value="${esc(own?.name)}" placeholder="e.g. Gamlin Restaurant Group" autocomplete="off"></label>
+      ${datalist('dl-owners', uniqSorted(owners))}
+      <input type="hidden" name="accountIds" value="">
+      <div class="field"><span>Link with</span><button type="button" class="picker-btn" data-act="pickLinkAccounts" data-acc="${acc.id}">Choose accounts…</button></div>`;
+    Modal.open(formSheet('link', 'Link accounts', body, { id: acc.id, submit: 'Link' }));
+  },
+  editLink(g) {
+    const body = `<p class="small muted" style="margin-top:0">${esc(Data.LINK_TYPES[g.type])}${g.type === 'proximity' ? ': checking in at one offers the others.' : '.'}</p>
+      ${g.type === 'ownership' ? `<label class="field"><span>Ownership group name (optional)</span><input type="text" name="name" value="${esc(g.name)}" autocomplete="off"></label>` : ''}
+      <div class="field"><span>Accounts in this group (uncheck to remove)</span>
+        ${g.accountIds.map((id) => Data.account(id)).filter(Boolean).map((a) => `<label class="checkline"><input type="checkbox" name="keep" value="${a.id}" checked> ${esc(a.name)}</label>`).join('')}</div>`;
+    Modal.open(formSheet('editLink', 'Edit link', body, { id: g.id, del: 'deleteLink' }));
+  },
   syncSetup() {
     const c = Sync.cfg || {};
     const body = `<p class="small muted" style="margin-top:0">Uses the private <b>rounds-data</b> repository and the access key you created on GitHub. The key is stored only on this device.</p>
@@ -299,8 +322,12 @@ const FORMS = {
     const id = form.dataset.id;
     if (id) Object.assign(Data.s.visits.find((v) => v.id === id), { accountId: accId, at, note: val(fd, 'note') });
     else Data.s.visits.push({ id: uid(), accountId: accId, at, note: val(fd, 'note') });
-    Store.save(); Modal.close(); App.refresh();
-    if (!id) Toast.show(`Visit logged for ${Data.account(accId)?.name}`);
+    Store.save(); App.refresh();
+    Modal.close().then(async () => {
+      if (id) return;
+      const extra = await askLinkedCheckins(Data.account(accId), at);
+      Toast.show(`Visit logged for ${Data.account(accId)?.name}${extra.length ? ` + ${plural(extra.length, 'nearby account')}` : ''}`);
+    });
   },
   placement(form, fd) {
     const a = Data.account(form.dataset.acc);
@@ -377,6 +404,29 @@ const FORMS = {
     for (const size of sizes.length ? sizes : ['']) n += addProduct({ ...f, size }) ? 1 : 0;
     Store.save(); Modal.close(); App.refresh();
     Toast.show(n ? `Added ${plural(n, 'product')}` : 'Already in your list');
+  },
+  link(form, fd) {
+    const s = Data.s, accId = form.dataset.id, type = fd.get('type'), name = val(fd, 'name');
+    const picked = String(fd.get('accountIds') || '').split(',').filter(Boolean);
+    if (!picked.length) return Toast.show('Choose at least one account to link');
+    const members = new Set([accId, ...picked]);
+    // join any existing groups of the same type these accounts already belong to
+    const existing = s.linkGroups.filter((g) => g.type === type && g.accountIds.some((id) => members.has(id)));
+    let g = existing[0];
+    if (!g) { g = { id: uid(), type, name: '', accountIds: [] }; s.linkGroups.push(g); }
+    for (const other of existing.slice(1)) { other.accountIds.forEach((id) => members.add(id)); if (!g.name && other.name) g.name = other.name; }
+    s.linkGroups = s.linkGroups.filter((x) => !existing.slice(1).includes(x));
+    g.accountIds = Array.from(new Set([...g.accountIds, ...members]));
+    if (type === 'ownership' && name) g.name = name;
+    Store.save(); Modal.close(); App.refresh();
+    Toast.show(`Linked ${plural(g.accountIds.length, 'account')} (${Data.LINK_TYPES[type].toLowerCase()})`);
+  },
+  editLink(form, fd) {
+    const s = Data.s, g = s.linkGroups.find((x) => x.id === form.dataset.id);
+    g.accountIds = fd.getAll('keep');
+    if (g.type === 'ownership') g.name = val(fd, 'name');
+    if (g.accountIds.length < 2) s.linkGroups = s.linkGroups.filter((x) => x !== g);
+    Store.save(); Modal.close(); App.refresh();
   },
   async syncSetup(form, fd) {
     const btn = form.querySelector('button[type=submit]');
