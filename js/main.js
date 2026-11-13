@@ -402,7 +402,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
   if (!location.hash) location.replace('#/visits');
   App.render();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-    navigator.serviceWorker.register('sw.js').then((reg) => {
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
       reg.addEventListener('updatefound', () => {
         const nw = reg.installing;
         nw?.addEventListener('statechange', () => {
