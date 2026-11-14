@@ -263,6 +263,22 @@ const Forms = {
         ${g.accountIds.map((id) => Data.account(id)).filter(Boolean).map((a) => `<label class="checkline"><input type="checkbox" name="keep" value="${a.id}" checked> ${esc(a.name)}</label>`).join('')}</div>`;
     Modal.open(formSheet('editLink', 'Edit link', body, { id: g.id, del: 'deleteLink' }));
   },
+  exportVisits() {
+    const today = new Date(), d = (x) => toLocalDate(x);
+    const mon = (x) => { const t = startOfDay(x); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return t; }; // weeks start Monday
+    const thisMon = mon(today), lastMon = new Date(thisMon); lastMon.setDate(lastMon.getDate() - 7);
+    const lastSun = new Date(thisMon); lastSun.setDate(lastSun.getDate() - 1);
+    const m0 = new Date(today.getFullYear(), today.getMonth(), 1), pm0 = new Date(today.getFullYear(), today.getMonth() - 1, 1), pm1 = new Date(today.getFullYear(), today.getMonth(), 0);
+    const first = Data.s.visits.reduce((m, v) => (!m || v.at < m ? v.at : m), '');
+    const presets = [['This week', d(thisMon), d(today)], ['Last week', d(lastMon), d(lastSun)], ['This month', d(m0), d(today)], ['Last month', d(pm0), d(pm1)], ['Last 30 days', d(new Date(Date.now() - 29 * DAY_MS)), d(today)], ['All time', first ? d(first) : d(today), d(today)]];
+    const body = `<div class="chips" style="margin-bottom:14px">${presets.map(([l, f, t]) => `<button type="button" class="chip" data-act="visitRange" data-from="${f}" data-to="${t}">${l}</button>`).join('')}</div>
+      <div class="two"><label class="field"><span>From</span><input type="date" name="from" value="${d(m0)}"></label><label class="field"><span>To</span><input type="date" name="to" value="${d(today)}"></label></div>
+      <label class="checkline"><input type="checkbox" name="other" checked> Include Other Accounts</label>
+      <p class="hint" id="visitRangeCount" style="margin-top:8px"></p>`;
+    const el = Modal.open(formSheet('exportVisits', 'Export visit history', body, { submit: 'Export' }));
+    const upd = () => { const f = el.querySelector('form'); const n = IO.visitsInRange(f.from.value, f.to.value, f.other.checked).length; el.querySelector('#visitRangeCount').textContent = `${plural(n, 'visit')} in this range.`; };
+    el.addEventListener('input', upd); el.addEventListener('change', upd); el._upd = upd; upd();
+  },
   syncSetup() {
     const c = Sync.cfg || {};
     const body = `<p class="small muted" style="margin-top:0">Uses the private <b>rounds-data</b> repository and the access key you created on GitHub. The key is stored only on this device.</p>
@@ -481,6 +497,12 @@ const FORMS = {
     if (g.type === 'ownership') g.name = val(fd, 'name');
     if (g.accountIds.length < 2) s.linkGroups = s.linkGroups.filter((x) => x !== g);
     Store.save(); Modal.close(); App.refresh();
+  },
+  exportVisits(form, fd) {
+    const from = fd.get('from'), to = fd.get('to');
+    if (!from || !to) return Toast.show('Pick both dates');
+    if (from > to) return Toast.show('"From" is after "To"');
+    IO.exportVisits(from, to, fd.get('other') === 'on').then((ok) => { if (ok) Modal.close(); });
   },
   async syncSetup(form, fd) {
     const btn = form.querySelector('button[type=submit]');

@@ -124,7 +124,7 @@ const Pages = {
 
   visitLog() {
     const visits = sortBy(Data.s.visits, (v) => v.at).reverse();
-    const res = { title: 'Visit history', tab: 'visits', back: true, actions: `<button class="btn small" data-act="logVisit">${icon('plus')} Log visit</button>` };
+    const res = { title: 'Visit history', tab: 'visits', back: true, actions: `<button class="btn small" data-act="exportVisits">${icon('download')} Export</button><button class="btn small" data-act="logVisit">${icon('plus')} Log visit</button>` };
     if (!visits.length) return { ...res, html: '<div class="empty">No visits logged yet.</div>' };
     const groups = new Map();
     for (const v of visits) { const k = toLocalDate(v.at); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(v); }

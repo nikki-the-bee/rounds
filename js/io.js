@@ -312,3 +312,40 @@ IO.exportSheet = async function () {
   XLSX.writeFile(wb, `Rounds_Export_${toLocalDate()}.xlsx`);
   Toast.show('Spreadsheet exported');
 };
+
+/* ---------- Visit history export (date range) ---------- */
+IO.visitsInRange = function (from, to, includeOther) {
+  return sortBy(Data.s.visits.filter((v) => {
+    const day = toLocalDate(v.at), a = Data.account(v.accountId);
+    return day >= from && day <= to && (includeOther || !Data.isOther(a));
+  }), (v) => v.at);
+};
+IO.exportVisits = async function (from, to, includeOther) {
+  try { await this.loadXLSX(); } catch (e) { Toast.show(e.message); return false; }
+  const visits = this.visitsInRange(from, to, includeOther);
+  if (!visits.length) { Toast.show('No visits in that date range'); return false; }
+  const wb = XLSX.utils.book_new();
+  const acc = (v) => Data.account(v.accountId);
+  const rows = visits.map((v) => {
+    const a = acc(v), dt = new Date(v.at);
+    return [toLocalDate(v.at), dt.toLocaleDateString(undefined, { weekday: 'short' }), fmtTime(v.at), a?.name || '(deleted account)', a ? Data.route(a.routeId)?.name || '' : '', a?.type || '', a ? Data.repName(a) : '', a && Data.isOther(a) ? 'Other' : 'Account List', v.note || ''];
+  });
+  const vs = XLSX.utils.aoa_to_sheet([['Date', 'Day', 'Time', 'Account', 'Route', 'Type', 'Breakthru Rep', 'List', 'Visit Note'], ...rows]);
+  vs['!cols'] = [11, 6, 9, 32, 26, 14, 16, 12, 80].map((wch) => ({ wch }));
+  // per-account summary for the same range
+  const by = new Map();
+  for (const v of visits) { const k = v.accountId; if (!by.has(k)) by.set(k, []); by.get(k).push(v); }
+  const sum = Array.from(by).map(([id, vv]) => { const a = Data.account(id); return [a?.name || '(deleted account)', a ? Data.route(a.routeId)?.name || '' : '', a && Data.isOther(a) ? 'Other' : 'Account List', vv.length, toLocalDate(vv[0].at), toLocalDate(vv[vv.length - 1].at)]; })
+    .sort((x, y) => y[3] - x[3] || sortName(x[0]).localeCompare(sortName(y[0])));
+  const notVisited = includeOther !== null ? Data.listAccounts().filter((a) => !by.has(a.id)).map((a) => [a.name, Data.route(a.routeId)?.name || '', 'Account List', 0, '', '']) : [];
+  const ss = XLSX.utils.aoa_to_sheet([['Account', 'Route', 'List', 'Visits', 'First Visit', 'Last Visit'], ...sum, ...sortBy(notVisited, (r) => sortName(r[0]))]);
+  ss['!cols'] = [32, 26, 12, 8, 12, 12].map((wch) => ({ wch }));
+  const info = XLSX.utils.aoa_to_sheet([['Rounds visit history'], [`${fmtDate(from, true)} – ${fmtDate(to, true)}`], [`${plural(visits.length, 'visit')} at ${plural(by.size, 'account')}${includeOther ? '' : ' (Account List only)'}`], [`Exported ${new Date().toLocaleString()}`]]);
+  info['!cols'] = [{ wch: 60 }];
+  XLSX.utils.book_append_sheet(wb, vs, 'Visits');
+  XLSX.utils.book_append_sheet(wb, ss, 'By Account');
+  XLSX.utils.book_append_sheet(wb, info, 'About');
+  XLSX.writeFile(wb, `Rounds_Visits_${from}_to_${to}.xlsx`);
+  Toast.show(`Exported ${plural(visits.length, 'visit')}`);
+  return true;
+};

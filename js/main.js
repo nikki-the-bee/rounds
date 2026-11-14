@@ -358,6 +358,13 @@ const ACT = {
   editTypes() { Forms.types(); },
   backupNow() { IO.backup(); },
   exportSheet() { IO.exportSheet(); },
+  exportVisits() { Forms.exportVisits(); },
+  visitRange(el) {
+    const box = Modal.top(), f = box.querySelector('form');
+    f.from.value = el.dataset.from; f.to.value = el.dataset.to;
+    $$('[data-act=visitRange]', box).forEach((c) => c.classList.toggle('on', c === el));
+    box._upd?.();
+  },
   syncSetup() { Forms.syncSetup(); },
   addLink(el) { Forms.link(findAcc(el)); },
   editLink(el) { const g = Data.s.linkGroups.find((x) => x.id === el.dataset.id); if (g) Forms.editLink(g); },
