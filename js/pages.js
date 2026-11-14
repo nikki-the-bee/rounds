@@ -5,6 +5,7 @@ const UI = {
   accounts: { q: '', route: '', tag: '', type: '', tier: '', rep: '', brand: '', product: '', placement: '', status: '', prio: false, archived: 'active', sort: 'name', showFilters: false },
   prios: { show: 'open', imp: '', route: '', sort: 'importance' },
   products: { q: '' },
+  contacts: { q: '' },
   other: { q: '', archived: false },
   acct: { showDone: false, notesAll: false, oppsClosed: false, visitsAll: false },
   load() {
@@ -490,6 +491,7 @@ const Pages = {
       <div class="setting"><div class="row-main"><div class="row-title">Email with</div><div class="row-sub">What the email buttons open</div></div>
         <select style="width:auto;max-width:55%" data-chg="emailApp">${[['outlook', 'Outlook app'], ['outlookweb', 'Outlook on the web'], ['default', "Device's default email app"]].map(([v, l]) => `<option value="${v}" ${(set.emailApp || 'outlook') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="setting"><div class="row-main"><div class="row-title">Account types & contact roles</div><div class="row-sub">Edit the suggestion lists</div></div><button class="btn small" data-act="editTypes">Edit</button></div>
+      <div class="setting"><div class="row-main"><div class="row-title">Contacts</div><div class="row-sub">${plural(s.people.length, 'person', 'people')} across your accounts</div></div><a class="btn small" href="#/contacts">Open</a></div>
       <div class="setting"><div class="row-main"><div class="row-title">Archived accounts</div><div class="row-sub">${plural(archived, 'account')} archived</div></div><button class="btn small" data-act="showArchived">View</button></div>
       <div class="setting"><div class="row-main"><div class="row-title">Visit history</div><div class="row-sub">Every check-in, newest first</div></div><a class="btn small" href="#/visits/log">Open</a></div>
     </div>
@@ -529,6 +531,47 @@ const Pages = {
         <button class="btn small primary" data-act="syncNow" ${Sync.state === 'syncing' ? 'disabled' : ''}>Sync now</button></div>
       <div class="setting"><div class="row-main"><div class="row-sub">Changes sync automatically a few seconds after you make them, and when you open the app.</div></div></div>
       <div class="toolbar" style="margin:8px 0 0">${Sync.state === 'error' ? `<button class="btn small" data-act="syncSetup">Update access key</button>` : ''}<span class="spacer"></span><button class="btn small ghost danger" data-act="syncDisconnect">Turn off on this device</button></div></div>`;
+  },
+  /* ====================== CONTACTS ====================== */
+  contacts() {
+    const res = { title: 'Contacts', tab: 'more', back: true };
+    if (!Data.s.people.length) return { ...res, html: '<div class="empty">No contacts yet. Add them on an account\'s page.</div>' };
+    return { ...res, html: `<div class="toolbar"><div class="search">${icon('search')}<input type="search" placeholder="Search name, phone, email, account or role" value="${esc(UI.contacts.q)}" data-input="contactSearch"></div></div><div id="contactList">${this.contactList()}</div>` };
+  },
+  contactActions(p) {
+    return `${p.phone ? `<a class="icon-btn" href="${telHref(p.phone)}" aria-label="Call">${icon('phone')}</a><a class="icon-btn" href="${smsHref(p.phone)}" aria-label="Text">${icon('msg')}</a>` : ''}
+      ${p.email ? `<a class="icon-btn" ${mailAttrs(p.email)} aria-label="Email">${icon('mail')}</a>` : ''}
+      ${p.instagram ? `<a class="icon-btn" href="${esc(igHref(p.instagram))}" target="_blank" rel="noopener" aria-label="Instagram">${icon('instagram')}</a>` : ''}
+      ${p.social ? `<a class="icon-btn" href="${esc(socialHref(p.social))}" target="_blank" rel="noopener" aria-label="Other social">${icon('link')}</a>` : ''}`;
+  },
+  personWhere(p) {
+    return Data.accountsOfPerson(p.id).map((a) => { const l = a.contacts.find((x) => x.personId === p.id); return { a, role: l?.role || '' }; })
+      .sort((x, y) => sortName(x.a.name).localeCompare(sortName(y.a.name)));
+  },
+  contactList() {
+    const ws = words(UI.contacts.q);
+    let list = Data.s.people.map((p) => ({ p, where: this.personWhere(p) }));
+    if (ws.length) list = list.filter(({ p, where }) => matchesAll([p.name, p.phone, p.email, p.instagram, ...where.map((w) => w.a.name + ' ' + w.role)].join(' '), ws));
+    list.sort((x, y) => norm(x.p.name || '~').localeCompare(norm(y.p.name || '~')));
+    if (!list.length) return '<div class="empty">No matching contacts.</div>';
+    return `<div class="list-meta"><span>${plural(list.length, 'person', 'people')}</span></div><div class="list" style="padding:0 14px">${list.map(({ p, where }) => `<div class="contact">
+        <div class="contact-main" data-act="go" data-href="#/person/${p.id}">
+          <div class="row-title">${esc(p.name || 'Unnamed')}</div>
+          <div class="row-sub">${esc(where.map((w) => w.a.name + (w.role ? ` (${w.role})` : '')).join(' · '))}</div>
+          ${p.phone || p.email ? `<div class="row-sub">${[p.phone ? `<span style="white-space:nowrap">${esc(p.phone)}</span>` : '', esc(p.email)].filter(Boolean).join(' · ')}</div>` : ''}
+        </div>
+        <div class="contact-actions">${this.contactActions(p)}</div></div>`).join('')}</div>`;
+  },
+  person(id) {
+    const p = Data.person(id);
+    if (!p) return { title: 'Not found', back: true, tab: 'more', html: '<div class="empty">This contact no longer exists.</div>' };
+    const where = this.personWhere(p), lm = Data.lastVisitMap();
+    const head = `<div class="card"><div class="contact" style="border-top:0;padding-top:0">
+        <div class="contact-main"><div class="row-title" style="font-size:18px">${esc(p.name || 'Unnamed')}</div>
+          ${p.phone ? `<div class="row-sub">${esc(p.phone)}</div>` : ''}${p.email ? `<div class="row-sub">${esc(p.email)}</div>` : ''}${p.instagram ? `<div class="row-sub">@${esc(p.instagram)}</div>` : ''}</div>
+        <div class="contact-actions">${this.contactActions(p)}</div></div></div>`;
+    const accts = `<div class="card"><h2>Accounts <span class="count">${where.length}</span></h2>${where.map(({ a, role }) => { const st = Data.status(a, lm); return `<div class="contact" data-act="openAccount" data-id="${a.id}" style="cursor:pointer">${Data.isOther(a) ? '' : statusDot(st)}<div class="contact-main"><div class="row-title">${esc(a.name)} ${Data.isOther(a) ? '<span class="pill other-pill">Other</span>' : ''}${a.archived ? ' <span class="pill">Archived</span>' : ''}</div><div class="row-sub">${esc([role, Data.statusText(st, a)].filter(Boolean).join(' · '))}</div></div></div>`; }).join('')}</div>`;
+    return { title: p.name || 'Contact', back: true, tab: 'more', actions: where[0] ? `<button class="btn small" data-act="editPerson" data-id="${p.id}">${icon('edit')} Edit</button>` : '', html: head + accts };
   },
   /* ====================== ROUTES ====================== */
   routes() {

@@ -10,6 +10,8 @@ const ROUTES = [
   [/^#\/products$/, () => Pages.products()],
   [/^#\/more$/, () => Pages.more()],
   [/^#\/routes$/, () => Pages.routes()],
+  [/^#\/contacts$/, () => Pages.contacts()],
+  [/^#\/person\/([\w-]+)$/, (id) => Pages.person(id)],
   [/^#\/tags$/, () => Pages.tags()],
   [/^#\/reps$/, () => Pages.reps()],
   [/^#\/rep\/([\w-]+)$/, (id) => Pages.rep(id)],
@@ -155,6 +157,11 @@ const ACT = {
 
   addContact(el) { Forms.contact(el.dataset.acc); },
   editContact(el) { const a = findAcc(el); const c = Data.contactsOf(a).find((x) => x.id === el.dataset.id); if (c) Forms.contact(a.id, c); },
+  editPerson(el) {
+    const a = Data.accountsOfPerson(el.dataset.id)[0]; if (!a) return;
+    const c = Data.contactsOf(a).find((x) => x.personId === el.dataset.id);
+    Forms.contact(a.id, c);
+  },
   async addExistingContact(el) {
     const a = findAcc(el);
     const pid = await Picker.person({ exclude: a.contacts.map((l) => l.personId), title: `Add to ${a.name}` });
@@ -444,6 +451,7 @@ const CHG = {
 };
 const INPUT = {
   acctSearch: debounce((el) => { UI.accounts.q = el.value; $('#acctList').innerHTML = Pages.accountsList(); }, 150),
+  contactSearch: debounce((el) => { UI.contacts.q = el.value; $('#contactList').innerHTML = Pages.contactList(); }, 150),
   otherSearch: debounce((el) => { UI.other.q = el.value; $('#otherList').innerHTML = Pages.otherList(); }, 150),
   prodSearch: debounce((el) => { UI.products.q = el.value; $('#prodTree').innerHTML = Pages.productTree(); }, 150),
   pickAcctSearch: debounce((el) => { Picker._acct.q = el.value; $('#pickAcctList').innerHTML = Picker.acctList(); }, 100),

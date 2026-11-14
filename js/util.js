@@ -62,6 +62,14 @@ function currentSlot() { const h = new Date().getHours(); return h < 12 ? 'morni
 function sortName(s) { return norm(s).replace(/^the\s+/, ''); }
 function norm(s) { return String(s ?? '').trim().toLowerCase(); }
 function plural(n, w, p) { return `${n} ${n === 1 ? w : (p || w + 's')}`; }
+/* 5555555555, (555) 555 5555, +1 555.555.5555 -> 555-555-5555. Anything else (extensions, international) is left as typed. */
+function fmtPhone(v) {
+  const s = String(v ?? '').trim();
+  let d = s.replace(/\D/g, '');
+  if (d.length === 11 && d[0] === '1' && !/[a-z]/i.test(s)) d = d.slice(1);
+  if (d.length === 10 && !/[a-z]/i.test(s)) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  return s;
+}
 function telHref(p) { return 'tel:' + String(p).replace(/[^\d+]/g, ''); }
 function smsHref(p) { return 'sms:' + String(p).replace(/[^\d+]/g, ''); }
 /* Email links. With the "outlook" setting: Android opens the Outlook app directly (falls back to

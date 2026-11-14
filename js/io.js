@@ -126,7 +126,7 @@ const IO = {
     const rowContacts = (r) => {
       const out = [];
       for (let n = 1; n <= 12; n++) {
-        const c = { name: r[`contact${n}name`] || (n === 1 ? r.contactname : '') || '', role: r[`contact${n}role`] || (n === 1 ? r.contactrole : '') || '', phone: r[`contact${n}phone`] || (n === 1 ? r.contactphone : '') || '', email: r[`contact${n}email`] || (n === 1 ? r.contactemail : '') || '', instagram: igHandle(r[`contact${n}instagram`] || (n === 1 ? r.contactinstagram : '') || ''), social: r[`contact${n}othersocial`] || r[`contact${n}social`] || '' };
+        const c = { name: r[`contact${n}name`] || (n === 1 ? r.contactname : '') || '', role: r[`contact${n}role`] || (n === 1 ? r.contactrole : '') || '', phone: fmtPhone(r[`contact${n}phone`] || (n === 1 ? r.contactphone : '') || ''), email: r[`contact${n}email`] || (n === 1 ? r.contactemail : '') || '', instagram: igHandle(r[`contact${n}instagram`] || (n === 1 ? r.contactinstagram : '') || ''), social: r[`contact${n}othersocial`] || r[`contact${n}social`] || '' };
         if (c.name || c.phone || c.email || c.instagram) out.push(c);
       }
       return out;

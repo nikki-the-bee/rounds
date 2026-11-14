@@ -1,5 +1,5 @@
 // Offline support: cache the app shell, serve from cache first.
-const VERSION = 'rounds-v25';
+const VERSION = 'rounds-v26';
 const ASSETS = ['./', 'index.html', 'css/styles.css', 'js/util.js', 'js/catalog.js', 'js/store.js', 'js/ui.js', 'js/pages.js', 'js/forms.js', 'js/io.js', 'js/sync.js', 'js/main.js',
   'lib/xlsx.full.min.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png'];
 // cache: 'reload' skips the browser's HTTP cache so an update never mixes old and new files

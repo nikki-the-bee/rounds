@@ -128,6 +128,8 @@ const Store = (() => {
     }
     const used = new Set(s.accounts.flatMap((a) => a.contacts.map((l) => l.personId)));
     s.people = s.people.filter((p) => used.has(p.id));
+    for (const p of s.people) if (p.phone) p.phone = fmtPhone(p.phone);
+    for (const r of s.settings.reps || []) if (r.phone) r.phone = fmtPhone(r.phone);
   }
   /* Merge the built-in product list into saved data without losing anything:
      - catalog products are added/updated by their permanent ID

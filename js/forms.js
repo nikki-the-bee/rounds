@@ -311,7 +311,7 @@ const FORMS = {
     if (id) { a = Data.account(id); Object.assign(a, fields); }
     else {
       a = { id: uid(), createdAt: new Date().toISOString(), archived: false, contacts: [], placements: [], hours: {}, best: {}, ...fields };
-      const c = { name: val(fd, 'cName'), phone: val(fd, 'cPhone'), email: val(fd, 'cEmail') };
+      const c = { name: val(fd, 'cName'), phone: fmtPhone(val(fd, 'cPhone')), email: val(fd, 'cEmail') };
       if (c.name || c.phone || c.email) a.contacts.push({ id: uid(), personId: Data.personFor(c).id, role: val(fd, 'cRole') });
       s.accounts.push(a);
     }
@@ -321,7 +321,7 @@ const FORMS = {
   async contact(form, fd) {
     const s = Data.s, a = Data.account(fd.get('accountId'));
     if (!a) return Toast.show('Choose an account');
-    const info = { name: val(fd, 'name'), phone: val(fd, 'phone'), email: val(fd, 'email'), instagram: igHandle(val(fd, 'instagram')), social: val(fd, 'social') };
+    const info = { name: val(fd, 'name'), phone: fmtPhone(val(fd, 'phone')), email: val(fd, 'email'), instagram: igHandle(val(fd, 'instagram')), social: val(fd, 'social') };
     const role = val(fd, 'role');
     if (!info.name && !info.phone && !info.email && !info.instagram) return Toast.show('Add at least a name, phone, email or Instagram');
     const linkId = form.dataset.id;
@@ -451,7 +451,7 @@ const FORMS = {
       return;
     }
     let r;
-    const info = { name, title: val(fd, 'title'), phone: val(fd, 'phone'), email: val(fd, 'email') };
+    const info = { name, title: val(fd, 'title'), phone: fmtPhone(val(fd, 'phone')), email: val(fd, 'email') };
     if (id) { r = Data.rep(id); Object.assign(r, info); } else { r = { id: uid(), ...info }; reps.push(r); }
     Store.save(); Modal.close(r.id); App.refresh();
   },
