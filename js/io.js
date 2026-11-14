@@ -162,6 +162,7 @@ const IO = {
       if (has('hours')) a.hours = parseHours(r.hours);
       if (has('besttimes')) a.best = parseBestTimes(r.besttimes);
       if (has('archived')) a.archived = yn(r.archived) === 'yes';
+      if (has('list')) a.list = /other/i.test(r.list) ? 'other' : '';
       if ('contact1name' in r) {
         // keep each person (and their other accounts) when the name still matches; the sheet wins for details,
         // but a shared person changed on one account's row isn't changed back by another account's row
@@ -187,6 +188,7 @@ const IO = {
       } else if (!touched.has(a.id)) aUpdated++;
       touched.add(a.id);
       if (!a.type && r.accounttype) a.type = r.accounttype;
+      if (/other/i.test(r.list || '') && !touched.has('listset' + a.id)) { a.list = 'other'; touched.add('listset' + a.id); }
       if (!a.address && r.address) a.address = r.address;
       if (!Data.route(a.routeId) && r.route) a.routeId = routeFor(r.route);
       const tier = (r.tier || '').toUpperCase();
@@ -255,25 +257,26 @@ IO.exportSheet = async function () {
   const s = Data.s;
   const accts = sortBy(s.accounts, (a) => `${String(Data.route(a.routeId)?.order ?? 999).padStart(4, '0')}|${sortName(a.name)}`);
   const maxC = Math.max(2, ...accts.map((a) => a.contacts.length));
-  const hdr = ['ID', 'Account Name', 'Account Type', 'Address', 'Route', 'Tier', 'Breakthru Rep', 'Visit Every (Days)', 'Tags', 'Open for Lunch', 'Hours', 'Best Times', 'Archived'];
+  const hdr = ['ID', 'Account Name', 'Account Type', 'Address', 'Route', 'Tier', 'Breakthru Rep', 'Visit Every (Days)', 'Tags', 'Open for Lunch', 'Hours', 'Best Times', 'Archived', 'List'];
   for (let i = 1; i <= maxC; i++) hdr.push(`Contact ${i} Name`, `Contact ${i} Role`, `Contact ${i} Phone`, `Contact ${i} Email`, `Contact ${i} Instagram`, `Contact ${i} Other Social`);
   const yn = (v) => (v === 'yes' ? 'Yes' : v === 'no' ? 'No' : '');
   const rows = accts.map((a) => {
     const hours = DAY_ORDER.filter((d) => a.hours[d]).map((d) => `${DAY_LABEL[d]}: ${a.hours[d].closed ? 'Closed' : `${a.hours[d].from || ''}-${a.hours[d].to || ''}`}`).join('; ');
     const best = DAY_ORDER.filter((d) => (a.best[d] || []).length).map((d) => `${DAY_LABEL[d]}: ${a.best[d].map((x) => SLOT_LABEL[x]).join(', ')}`).join('; ');
-    const row = [a.id, a.name, a.type || '', a.address || '', Data.route(a.routeId)?.name || '', a.tier || '', Data.repName(a), a.freqDays || '', Data.acctTags(a).map((t) => t.name).join(', '), yn(a.lunch), hours, best, a.archived ? 'Yes' : 'No'];
+    const row = [a.id, a.name, a.type || '', a.address || '', Data.route(a.routeId)?.name || '', a.tier || '', Data.repName(a), a.freqDays || '', Data.acctTags(a).map((t) => t.name).join(', '), yn(a.lunch), hours, best, a.archived ? 'Yes' : 'No', Data.isOther(a) ? 'Other' : 'Account List'];
     const cs = Data.contactsOf(a);
     for (let i = 0; i < maxC; i++) { const c = cs[i] || {}; row.push(c.name || '', c.role || '', c.phone || '', c.email || '', c.instagram ? '@' + c.instagram : '', c.social || ''); }
     return row;
   });
   const wb = XLSX.utils.book_new();
   const acc = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
-  acc['!cols'] = [6, 30, 14, 40, 24, 5, 14, 9, 28, 9, 30, 30, 8, ...Array(maxC).fill([16, 18, 14, 26, 18, 24]).flat()].map((wch) => ({ wch }));
+  acc['!cols'] = [6, 30, 14, 40, 24, 5, 14, 9, 28, 9, 30, 30, 8, 12, ...Array(maxC).fill([16, 18, 14, 26, 18, 24]).flat()].map((wch) => ({ wch }));
   acc['!cols'][0].hidden = true;
   const name = (id) => Data.account(id)?.name || '(deleted)';
   const lm = Data.lastVisitMap();
   const help = XLSX.utils.aoa_to_sheet([['Editing this export'], [''],
     ['• Edit anything on the Accounts tab (names, routes, tags, contacts…), then import this file in Rounds (More → Import spreadsheet).'],
+    ['• List = "Account List" or "Other". Other Accounts are tracked but not on your visit schedule.'],
     ['• The hidden ID column (column A) is how Rounds recognizes each account. Leave it alone and renames will just work.'],
     ['• For accounts with an ID, the spreadsheet wins: a cleared cell clears that field in the app.'],
     ['• Add a new account by adding a row with the ID left blank. Deleting a row does NOT delete the account; use Archived = Yes or delete it in the app.'],

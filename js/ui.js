@@ -133,7 +133,7 @@ const Picker = {
     let list = sortBy(Data.active().filter((a) => !st.exclude.has(a.id)), (a) => sortName(a.name));
     if (ws.length) list = list.filter((a) => matchesAll(`${a.name} ${Data.routeName(a.routeId)} ${a.type || ''} ${a.address || ''}`, ws));
     const row = (a) => {
-      const sub = esc([Data.route(a.routeId)?.name, a.type].filter(Boolean).join(' · '));
+      const sub = esc([Data.isOther(a) ? 'Other account' : '', Data.route(a.routeId)?.name, a.type].filter(Boolean).join(' · '));
       if (st.multi) return `<label class="row"><input type="checkbox" class="toggle" style="width:20px;height:20px;accent-color:var(--accent)" value="${a.id}" data-chg="pickAcctToggle" ${st.sel.has(a.id) ? 'checked' : ''}><div class="row-main"><div class="row-title">${esc(a.name)}</div><div class="row-sub">${sub}</div></div></label>`;
       return `<div class="row" data-act="modalResolve" data-val="${a.id}"><span class="dot" style="background:${Data.routeColor(a.routeId)}"></span><div class="row-main"><div class="row-title">${esc(a.name)}</div><div class="row-sub">${sub}</div></div></div>`;
     };

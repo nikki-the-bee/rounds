@@ -4,6 +4,7 @@ const ROUTES = [
   [/^#\/visits$/, () => Pages.visits()],
   [/^#\/visits\/log$/, () => Pages.visitLog()],
   [/^#\/accounts$/, () => Pages.accounts()],
+  [/^#\/other$/, () => Pages.other()],
   [/^#\/account\/([\w-]+)$/, (id) => Pages.account(id)],
   [/^#\/priorities$/, () => Pages.priorities()],
   [/^#\/products$/, () => Pages.products()],
@@ -63,7 +64,7 @@ const ACT = {
       if (kind === 'visit') Forms.visit({ accountId: acc });
       if (kind === 'note') Forms.note({ accountId: acc });
       if (kind === 'priority') Forms.priority({ accountId: acc });
-      if (kind === 'account') Forms.account();
+      if (kind === 'account') Forms.account(null, { list: location.hash === '#/other' || Data.isOther(Data.account(acc)) ? 'other' : '' });
       if (kind === 'contact') Forms.contact(acc || '');
       if (kind === 'opp') {
         if (acc) return ACT.addOpps({ dataset: { acc } });
@@ -122,7 +123,14 @@ const ACT = {
     Modal.close(); commit();
   },
 
-  newAccount() { Forms.account(); },
+  newAccount(el) { Forms.account(null, { list: el?.dataset?.list || (location.hash === '#/other' ? 'other' : '') }); },
+  moveList(el) {
+    const a = Data.account(el.dataset.id); if (!a) return;
+    a.list = Data.isOther(a) ? '' : 'other';
+    commit();
+    Toast.show(Data.isOther(a) ? `${a.name} moved to Other Accounts` : `${a.name} moved to your Account List. It's on your visit schedule now.`);
+  },
+  toggleOtherArchived() { UI.other.archived = !UI.other.archived; $('#otherList').innerHTML = Pages.otherList(); },
   editAccount(el) { const a = Data.account(el.dataset.id); if (a) Forms.account(a); },
   archiveAccount(el) {
     const a = Data.account(el.dataset.id);
@@ -429,6 +437,7 @@ const CHG = {
 };
 const INPUT = {
   acctSearch: debounce((el) => { UI.accounts.q = el.value; $('#acctList').innerHTML = Pages.accountsList(); }, 150),
+  otherSearch: debounce((el) => { UI.other.q = el.value; $('#otherList').innerHTML = Pages.otherList(); }, 150),
   prodSearch: debounce((el) => { UI.products.q = el.value; $('#prodTree').innerHTML = Pages.productTree(); }, 150),
   pickAcctSearch: debounce((el) => { Picker._acct.q = el.value; $('#pickAcctList').innerHTML = Picker.acctList(); }, 100),
   pickPersonSearch: debounce((el) => { Picker._person.q = el.value; $('#pickPersonList').innerHTML = Picker.personList(); }, 100),

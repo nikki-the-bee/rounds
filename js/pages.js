@@ -5,6 +5,7 @@ const UI = {
   accounts: { q: '', route: '', tag: '', type: '', tier: '', rep: '', brand: '', product: '', placement: '', status: '', prio: false, archived: 'active', sort: 'name', showFilters: false },
   prios: { show: 'open', imp: '', route: '', sort: 'importance' },
   products: { q: '' },
+  other: { q: '', archived: false },
   acct: { showDone: false, notesAll: false, oppsClosed: false, visitsAll: false },
   load() {
     try { const s = JSON.parse(localStorage.getItem('rounds-ui') || '{}'); for (const k of ['visits', 'accounts', 'prios']) Object.assign(this[k], s[k] || {}); } catch {}
@@ -43,7 +44,7 @@ const Pages = {
   /* ====================== VISITS ====================== */
   visits() {
     const u = UI.visits, lm = Data.lastVisitMap();
-    const all = Data.active();
+    const all = Data.listAccounts();
     const res = { title: 'Visits', tab: 'visits', actions: `<a class="btn small ghost" href="#/visits/log">${icon('clock')} History</a>` };
     if (!all.length) return { ...res, html: emptyStart() };
     let items = all.map((a) => ({ a, st: Data.status(a, lm) }));
@@ -141,7 +142,7 @@ const Pages = {
   accounts() {
     const u = UI.accounts;
     const active = ACCT_FILTER_KEYS.filter((k) => u[k]).length + (u.archived !== 'active' ? 1 : 0);
-    const res = { title: 'Accounts', tab: 'accounts', actions: `<button class="btn small primary" data-act="newAccount">${icon('plus')} New</button>` };
+    const res = { title: 'Account List', tab: 'accounts', actions: `<button class="btn small primary" data-act="newAccount">${icon('plus')} New</button>` };
     if (!Data.s.accounts.length) return { ...res, html: emptyStart() };
     let h = `<div class="toolbar">
       <div class="search">${icon('search')}<input type="search" placeholder="Search names, contacts, notes, products…" value="${esc(u.q)}" data-input="acctSearch"></div>
@@ -174,7 +175,7 @@ const Pages = {
   },
   filteredAccounts() {
     const u = UI.accounts, lm = Data.lastVisitMap();
-    let list = Data.s.accounts.filter((a) => (u.archived === 'all' ? true : u.archived === 'archived' ? a.archived : !a.archived));
+    let list = Data.s.accounts.filter((a) => !Data.isOther(a) && (u.archived === 'all' ? true : u.archived === 'archived' ? a.archived : !a.archived));
     if (u.route) list = list.filter((a) => (u.route === 'none' ? !Data.route(a.routeId) : a.routeId === u.route));
     if (u.tag) list = list.filter((a) => (u.tag === 'none' ? !(a.tags || []).length : (a.tags || []).includes(u.tag)));
     if (u.type) list = list.filter((a) => norm(a.type) === norm(u.type));
@@ -220,6 +221,28 @@ const Pages = {
     }).join('')}</div>`;
   },
 
+  /* ====================== OTHER ACCOUNTS ====================== */
+  other() {
+    const res = { title: 'Other Accounts', tab: 'other', actions: `<button class="btn small primary" data-act="newAccount" data-list="other">${icon('plus')} New</button>` };
+    const all = Data.s.accounts.filter((a) => Data.isOther(a));
+    let h = `<p class="small muted" style="margin:0 4px 10px">Places you visit that aren't on your Account List. Track visits, notes, contacts and products here without adding them to your visit schedule. If one grows, open it and tap <b>Move to Account List</b>.</p>`;
+    if (!all.length) return { ...res, html: h + `<div class="card empty"><p style="margin-top:0">No other accounts yet.</p><button class="btn primary" data-act="newAccount" data-list="other">${icon('plus')} Add an account</button></div>` };
+    h += `<div class="toolbar"><div class="search">${icon('search')}<input type="search" placeholder="Search other accounts" value="${esc(UI.other.q)}" data-input="otherSearch"></div></div><div id="otherList">${this.otherList()}</div>`;
+    return { ...res, html: h };
+  },
+  otherList() {
+    const lm = Data.lastVisitMap(), ws = words(UI.other.q);
+    let list = Data.s.accounts.filter((a) => Data.isOther(a) && (UI.other.archived || !a.archived));
+    if (ws.length) list = list.filter((a) => matchesAll(Data.searchText(a), ws));
+    list = list.sort((x, y) => (lm[y.id]?.at || '').localeCompare(lm[x.id]?.at || '') || sortName(x.name).localeCompare(sortName(y.name)));
+    const arch = Data.s.accounts.filter((a) => Data.isOther(a) && a.archived).length;
+    let h = `<div class="list-meta"><span>${plural(list.length, 'account')} · most recently visited first</span>${arch ? `<button class="link-btn" data-act="toggleOtherArchived">${UI.other.archived ? 'Hide' : 'Show'} ${arch} archived</button>` : ''}</div>`;
+    if (!list.length) return h + '<div class="empty">No matches.</div>';
+    return h + `<div class="list">${list.map((a) => { const st = Data.status(a, lm); const sub = [a.type, Data.route(a.routeId)?.name].filter(Boolean).map(esc).join(' · ');
+      return `<div class="row" data-act="openAccount" data-id="${a.id}"><div class="row-main"><div class="row-title">${esc(a.name)}${a.archived ? ' <span class="pill">Archived</span>' : ''}</div>${sub ? `<div class="row-sub">${sub}</div>` : ''}<div class="row-sub">${esc(Data.statusText(st, a))}</div></div>
+        <button class="check-btn ${st.days === 0 ? 'done' : ''}" data-act="checkIn" data-id="${a.id}" aria-label="Check in">${icon('check')}</button></div>`; }).join('')}</div>`;
+  },
+
   /* ====================== ACCOUNT DETAIL ====================== */
   account(id) {
     const a = Data.account(id);
@@ -229,6 +252,7 @@ const Pages = {
 
     const head = `<div class="card acct-head">
       <div class="meta">
+        ${Data.isOther(a) ? '<span class="pill other-pill">Other account</span>' : ''}
         ${a.archived ? '<span class="pill">Archived</span>' : ''}
         ${a.type ? `<span class="pill">${esc(a.type)}</span>` : ''}
         ${route ? `<span class="pill"><span class="dot" style="background:${route.color};width:8px;height:8px"></span>${esc(route.name)}</span>` : '<span class="pill">No route</span>'}
@@ -236,9 +260,10 @@ const Pages = {
         ${Data.tagPills(a)}
       </div>
       ${a.address ? `<a class="addr" href="${mapHref(a.address)}" target="_blank" rel="noopener">${icon('map')}<span>${esc(a.address)}</span></a>` : ''}
-      <div class="line">${statusDot(st)} ${esc(Data.statusText(st))}${st.last ? ` (${fmtDate(st.last.at)})` : ''} · every ${st.freq} days</div>
+      ${Data.isOther(a) ? `<div class="line">${icon('clock')} ${esc(Data.statusText(st, a))}${st.last ? ` (${fmtDate(st.last.at)})` : ''}</div>` : `<div class="line">${statusDot(st)} ${esc(Data.statusText(st))}${st.last ? ` (${fmtDate(st.last.at)})` : ''} · every ${st.freq} days</div>`}
       ${Data.nearby(a.id).length ? `<div class="line">${icon('map')} <span>Same proximity as ${Data.nearby(a.id).map((o) => `<a href="#/account/${o.id}">${esc(o.name)}</a>`).join(', ')}</span></div>` : ''}
       ${Data.linkGroups(a.id).filter((g) => g.type === 'ownership').map((g) => `<div class="line">${icon('users')} <span>Same ownership${g.name ? ` (${esc(g.name)})` : ''}: ${g.accountIds.filter((id) => id !== a.id).map((id) => Data.account(id)).filter(Boolean).map((o) => `<a href="#/account/${o.id}">${esc(o.name)}</a>`).join(', ')}</span></div>`).join('')}
+      ${Data.isOther(a) ? `<div class="line"><button class="link-btn" style="padding:0" data-act="moveList" data-id="${a.id}">${icon('store')} Move to Account List</button></div>` : ''}
       ${Data.repName(a) ? `<div class="line">${icon('user')} Breakthru rep:&nbsp;<a href="#/rep/${a.repId}">${esc(Data.repName(a))}</a></div>` : `<div class="line">${icon('user')} Breakthru rep:&nbsp;<button class="link-btn" style="padding:0" data-act="editAccount" data-id="${a.id}">+ Add</button></div>`}
       <div class="action-row">
         <button class="btn primary" data-act="checkIn" data-id="${a.id}">${icon('check')}Check in</button>
@@ -366,12 +391,13 @@ const Pages = {
     </div>`;
 
     const danger = `<div class="danger-zone">
+      <button class="btn ${Data.isOther(a) ? 'primary' : ''}" data-act="moveList" data-id="${a.id}">${icon(Data.isOther(a) ? 'store' : 'compass')} ${Data.isOther(a) ? 'Move to Account List' : 'Move to Other Accounts'}</button>
       <button class="btn" data-act="archiveAccount" data-id="${a.id}">${icon('archive')} ${a.archived ? 'Restore from archive' : 'Archive account'}</button>
       <button class="btn danger" data-act="deleteAccount" data-id="${a.id}">${icon('trash')} Delete</button>
     </div>`;
 
     return {
-      title: a.name, back: true, tab: 'accounts',
+      title: a.name, back: true, tab: Data.isOther(a) ? 'other' : 'accounts',
       actions: `<button class="btn small" data-act="editAccount" data-id="${a.id}">${icon('edit')} Edit</button>`,
       html: head + `<div class="acct-grid"><div>${prios}${contacts}${notes}${visits}</div><div>${products}${oppsCard}${hours}${links}</div></div>` + danger,
     };
@@ -444,7 +470,7 @@ const Pages = {
     const wonMonth = s.opportunities.filter((o) => o.status === 'won' && o.closedAt && toLocalDate(o.closedAt).slice(0, 7) === monthKey).length;
     const openOpps = s.opportunities.filter((o) => o.status === 'open').length;
     const lm = Data.lastVisitMap();
-    const overdue = Data.active().filter((a) => ['overdue', 'never'].includes(Data.status(a, lm).status)).length;
+    const overdue = Data.listAccounts().filter((a) => ['overdue', 'never'].includes(Data.status(a, lm).status)).length;
     const archived = s.accounts.filter((a) => a.archived).length;
     const stat = (n, l) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`;
     const lb = set.lastBackup;
@@ -576,7 +602,7 @@ const Pages = {
     // accounts
     const list = `<div class="card" style="padding-bottom:4px"><h2>Accounts <span class="count">${accts.length}</span><span class="spacer"></span><button class="btn small" data-act="repAddAccounts" data-id="${r.id}">${icon('plus')} Assign</button></h2>
       ${accts.length ? accts.map((a) => { const st = Data.status(a, lm); const op = Data.openPriorities(a.id).length;
-        return `<div class="contact" data-act="openAccount" data-id="${a.id}" style="cursor:pointer">${statusDot(st)}<div class="contact-main"><div class="row-title">${esc(a.name)} ${op ? `<span class="pill flag-pill">${icon('flag')}${op}</span>` : ''}</div><div class="row-sub">${esc([Data.route(a.routeId)?.name, Data.statusText(st)].filter(Boolean).join(' · '))}</div></div></div>`; }).join('') : '<div class="muted small" style="padding-bottom:10px">No accounts assigned yet.</div>'}
+        return `<div class="contact" data-act="openAccount" data-id="${a.id}" style="cursor:pointer">${statusDot(st)}<div class="contact-main"><div class="row-title">${esc(a.name)} ${Data.isOther(a) ? '<span class="pill other-pill">Other</span>' : ''} ${op ? `<span class="pill flag-pill">${icon('flag')}${op}</span>` : ''}</div><div class="row-sub">${esc([Data.route(a.routeId)?.name, Data.statusText(st, a)].filter(Boolean).join(' · '))}</div></div></div>`; }).join('') : '<div class="muted small" style="padding-bottom:10px">No accounts assigned yet.</div>'}
       ${archived ? `<div class="small muted" style="padding:6px 0 10px">+ ${plural(archived, 'archived account')}</div>` : ''}</div>`;
     return {
       title: r.name, back: true, tab: 'reps',

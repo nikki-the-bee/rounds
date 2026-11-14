@@ -224,6 +224,10 @@ const Data = {
   routeColor(id) { return this.route(id)?.color || 'var(--muted)'; },
   routesSorted() { return sortBy(this.s.routes, (r) => r.order ?? 0); },
   active() { return this.s.accounts.filter((a) => !a.archived); },
+  /* "Other Accounts" are places you visit that aren't on your Account List: tracked, but not scheduled */
+  isOther(a) { return a?.list === 'other'; },
+  listAccounts() { return this.active().filter((a) => !this.isOther(a)); },
+  otherAccounts() { return this.active().filter((a) => this.isOther(a)); },
   lastVisitMap() {
     const m = {};
     for (const v of this.s.visits) if (!m[v.accountId] || v.at > m[v.accountId].at) m[v.accountId] = v;
@@ -239,7 +243,8 @@ const Data = {
     const status = days > freq ? 'overdue' : dueIn <= Math.max(1, Math.round(freq * 0.2)) ? 'due' : 'ok';
     return { last, freq, days, dueIn, ratio: days / freq, status };
   },
-  statusText(st) {
+  statusText(st, a) {
+    if (a && this.isOther(a)) { const n = this.s.visits.filter((v) => v.accountId === a.id).length; return st.last ? `Last visit ${relDays(st.days)} · ${plural(n, 'visit')}` : 'No visits yet'; }
     if (st.status === 'never') return 'Never visited';
     const ago = relDays(st.days);
     if (st.status === 'overdue') return `Visited ${ago} · ${plural(st.days - st.freq, 'day')} overdue`;

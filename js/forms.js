@@ -48,10 +48,13 @@ const Forms = {
     </div></div>`);
   },
 
-  account(a) {
-    const isNew = !a; a = a || { tier: '' };
+  account(a, opts = {}) {
+    const isNew = !a; a = a || { tier: '', list: opts.list || '' };
     const tierSeg = `<div class="field"><span>Tier</span><div class="seg">${[['', 'None'], ['A', 'A'], ['B', 'B'], ['C', 'C']].map(([v, l]) => `<label><input type="radio" name="tier" value="${v}" ${(a.tier || '') === v ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>`;
     const body = `
+      <div class="field"><span>Where it lives</span><div class="seg">
+        <label><input type="radio" name="list" value="" ${a.list !== 'other' ? 'checked' : ''}><span>Account List</span></label>
+        <label><input type="radio" name="list" value="other" ${a.list === 'other' ? 'checked' : ''}><span>Other Accounts</span></label></div></div>
       <label class="field"><span>Account name *</span><input type="text" name="name" value="${esc(a.name)}" required ${isNew ? 'autofocus' : ''} autocomplete="off"></label>
       <label class="field"><span>Type</span><input type="text" name="type" list="dl-types" value="${esc(a.type)}" placeholder="Bar, Restaurant, Country Club…" autocomplete="off"></label>
       <label class="field"><span>Address</span><input type="text" name="address" value="${esc(a.address)}" placeholder="Street, city" autocomplete="off"></label>
@@ -287,7 +290,7 @@ const FORMS = {
     let freq = fd.get('freqSel');
     freq = freq === 'custom' ? parseInt(fd.get('freqCustom'), 10) || null : freq ? Number(freq) : null;
     let routeId = fd.get('routeId'); if (routeId === '__new') routeId = '';
-    const fields = { name, type: val(fd, 'type'), address: val(fd, 'address'), routeId, tier: fd.get('tier') || '', repId: fd.get('repId') === '__new' ? '' : fd.get('repId') || '', freqDays: freq, tags: fd.getAll('tags') };
+    const fields = { name, type: val(fd, 'type'), address: val(fd, 'address'), routeId, tier: fd.get('tier') || '', repId: fd.get('repId') === '__new' ? '' : fd.get('repId') || '', freqDays: freq, tags: fd.getAll('tags'), list: fd.get('list') === 'other' ? 'other' : '' };
     let a;
     if (id) { a = Data.account(id); Object.assign(a, fields); }
     else {

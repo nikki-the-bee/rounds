@@ -29,6 +29,7 @@ a{color:var(--accent)}
 #nav a .ic{width:24px;height:24px}
 #nav a.active{color:var(--accent)}
 #nav .brand{display:none}
+#nav .lbl-l{display:none}
 #main{padding-bottom:calc(var(--nav-h) + 96px + env(safe-area-inset-bottom))}
 #topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:8px;min-height:58px;padding:8px 12px 8px 16px;padding-top:calc(8px + env(safe-area-inset-top));background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
 #back{margin-left:-8px}
@@ -259,6 +260,7 @@ textarea{min-height:110px;resize:vertical}
   #nav{top:0;bottom:0;right:auto;width:var(--nav-w);height:auto;flex-direction:column;justify-content:flex-start;gap:2px;padding:14px 12px;border-top:0;border-right:1px solid var(--border)}
   #nav a{flex:none;flex-direction:row;justify-content:flex-start;gap:12px;padding:11px 14px;border-radius:12px;font-size:15px}
   #nav a.active{background:var(--surface2)}
+  #nav .lbl-l{display:inline}#nav .lbl-s{display:none}
   #nav .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;padding:6px 10px 18px}
   #nav .brand img{width:34px;height:34px;border-radius:9px}
   #main{margin-left:var(--nav-w);padding-bottom:110px}
@@ -308,3 +310,6 @@ select.mini.on{border-color:var(--accent);color:var(--accent)}
 
 .pl-tree .t-cat>summary{padding:10px 2px}
 .pl-tree .pl-group:first-child .pl-brand{margin-top:2px}
+
+@media (max-width:380px){#nav a{font-size:10px}#nav a .ic{width:22px;height:22px}}
+.pill.other-pill{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
