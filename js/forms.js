@@ -204,7 +204,7 @@ const Forms = {
 
   productInfo(p) {
     const rows = [];
-    for (const a of sortBy(Data.active(), (a) => norm(a.name))) {
+    for (const a of sortBy(Data.active(), (a) => sortName(a.name))) {
       const pl = a.placements.find((x) => x.productId === p.id);
       if (pl) rows.push(`<div class="row" data-act="go" data-href="#/account/${a.id}"><div class="row-main"><div class="row-title">${esc(a.name)}</div><div class="row-sub">${esc([Data.route(a.routeId)?.name, ...Object.keys(PLACEMENT_TYPES).filter((k) => pl[k]).map((k) => PLACEMENT_TYPES[k])].filter(Boolean).join(' · '))}</div></div></div>`);
     }

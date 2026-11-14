@@ -253,7 +253,7 @@ function parseHours(str) {
 IO.exportSheet = async function () {
   try { await this.loadXLSX(); } catch (e) { return Toast.show(e.message); }
   const s = Data.s;
-  const accts = sortBy(s.accounts, (a) => `${String(Data.route(a.routeId)?.order ?? 999).padStart(4, '0')}|${norm(a.name)}`);
+  const accts = sortBy(s.accounts, (a) => `${String(Data.route(a.routeId)?.order ?? 999).padStart(4, '0')}|${sortName(a.name)}`);
   const maxC = Math.max(2, ...accts.map((a) => a.contacts.length));
   const hdr = ['ID', 'Account Name', 'Account Type', 'Address', 'Route', 'Tier', 'Breakthru Rep', 'Visit Every (Days)', 'Tags', 'Open for Lunch', 'Hours', 'Best Times', 'Archived'];
   for (let i = 1; i <= maxC; i++) hdr.push(`Contact ${i} Name`, `Contact ${i} Role`, `Contact ${i} Phone`, `Contact ${i} Email`, `Contact ${i} Instagram`, `Contact ${i} Other Social`);

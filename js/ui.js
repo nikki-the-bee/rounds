@@ -130,7 +130,7 @@ const Picker = {
   },
   acctList() {
     const st = this._acct, ws = words(st.q);
-    let list = sortBy(Data.active().filter((a) => !st.exclude.has(a.id)), (a) => norm(a.name));
+    let list = sortBy(Data.active().filter((a) => !st.exclude.has(a.id)), (a) => sortName(a.name));
     if (ws.length) list = list.filter((a) => matchesAll(`${a.name} ${Data.routeName(a.routeId)} ${a.type || ''} ${a.address || ''}`, ws));
     const row = (a) => {
       const sub = esc([Data.route(a.routeId)?.name, a.type].filter(Boolean).join(' · '));

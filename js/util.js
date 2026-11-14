@@ -58,6 +58,8 @@ function toLocalInput(d = new Date()) { d = new Date(d); return `${d.getFullYear
 function toLocalDate(d = new Date()) { d = new Date(d); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 function todayKey() { return WEEKDAYS[new Date().getDay()]; }
 function currentSlot() { const h = new Date().getHours(); return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'; }
+/* alphabetizing key for names: ignores a leading "The" ("The Bellwether" sorts under B) */
+function sortName(s) { return norm(s).replace(/^the\s+/, ''); }
 function norm(s) { return String(s ?? '').trim().toLowerCase(); }
 function plural(n, w, p) { return `${n} ${n === 1 ? w : (p || w + 's')}`; }
 function telHref(p) { return 'tel:' + String(p).replace(/[^\d+]/g, ''); }

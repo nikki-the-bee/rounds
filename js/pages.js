@@ -58,7 +58,7 @@ const Pages = {
     items.forEach((x) => counts[x.st.status]++);
     if (u.status !== 'all') items = items.filter((x) => x.st.status === u.status);
 
-    const byName = (x) => norm(x.a.name);
+    const byName = (x) => sortName(x.a.name);
     const sorters = {
       overdue: (a, b) => b.st.ratio - a.st.ratio || (b.st.days ?? 0) - (a.st.days ?? 0) || byName(a).localeCompare(byName(b)),
       oldest: (a, b) => (a.st.last?.at || '').localeCompare(b.st.last?.at || '') || byName(a).localeCompare(byName(b)),
@@ -195,7 +195,7 @@ const Pages = {
     let out = u.status ? withSt.filter((x) => x.st.status === u.status) : withSt;
     if (u.prio) out = out.filter((x) => Data.openPriorities(x.a.id).length);
     if (u.q) { const ws = words(u.q); out = out.filter((x) => matchesAll(Data.searchText(x.a), ws)); }
-    const byName = (x) => norm(x.a.name);
+    const byName = (x) => sortName(x.a.name);
     const sorts = {
       name: (a, b) => byName(a).localeCompare(byName(b)),
       route: (a, b) => (Data.route(a.a.routeId)?.order ?? 999) - (Data.route(b.a.routeId)?.order ?? 999) || byName(a).localeCompare(byName(b)),
@@ -530,7 +530,7 @@ const Pages = {
     const r = Data.rep(id);
     if (!r) return { title: 'Not found', back: true, tab: 'reps', html: '<div class="empty">This rep no longer exists.</div>' };
     const s = Data.s, ua = UI.acct, lm = Data.lastVisitMap();
-    const accts = sortBy(s.accounts.filter((a) => a.repId === r.id && !a.archived), (a) => norm(a.name));
+    const accts = sortBy(s.accounts.filter((a) => a.repId === r.id && !a.archived), (a) => sortName(a.name));
     const archived = s.accounts.filter((a) => a.repId === r.id && a.archived).length;
     const head = `<div class="card">
       <div class="contact" style="border-top:0;padding-top:0">
@@ -571,7 +571,7 @@ const Pages = {
   route(id) {
     const r = id === 'none' ? null : Data.route(id);
     if (id !== 'none' && !r) return { title: 'Not found', back: true, tab: 'more', html: '<div class="empty">Route not found.</div>' };
-    const list = sortBy(Data.active().filter((a) => (r ? a.routeId === r.id : !Data.route(a.routeId))), (a) => norm(a.name));
+    const list = sortBy(Data.active().filter((a) => (r ? a.routeId === r.id : !Data.route(a.routeId))), (a) => sortName(a.name));
     const routes = Data.routesSorted();
     const opts = (a) => `<option value="">No route</option>` + routes.map((x) => `<option value="${x.id}" ${a.routeId === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
     let h = r ? `<div class="toolbar"><span class="pill"><span class="dot" style="background:${r.color}"></span>${plural(list.length, 'account')}</span><span class="spacer"></span><button class="btn small" data-act="routeAddAccounts" data-id="${r.id}">${icon('plus')} Add accounts</button></div>` : `<p class="small muted" style="margin:0 4px 10px">These accounts aren't in a route yet. Pick one for each.</p>`;

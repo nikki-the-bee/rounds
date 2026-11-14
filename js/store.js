@@ -313,7 +313,7 @@ const Data = {
       due: (a, b) => (a.due || '9999').localeCompare(b.due || '9999') || imp(a) - imp(b),
       newest: (a, b) => b.createdAt.localeCompare(a.createdAt),
       oldest: (a, b) => a.createdAt.localeCompare(b.createdAt),
-      account: (a, b) => norm(this.account(a.accountId)?.name || '~').localeCompare(norm(this.account(b.accountId)?.name || '~')) || imp(a) - imp(b),
+      account: (a, b) => sortName(this.account(a.accountId)?.name || '~').localeCompare(sortName(this.account(b.accountId)?.name || '~')) || imp(a) - imp(b),
       done: (a, b) => (b.doneAt || '').localeCompare(a.doneAt || ''),
     };
     return copy.sort(by[mode] || by.importance);
