@@ -92,6 +92,15 @@ const Store = (() => {
     }
     migratePeople(s);
     syncCatalog(s);
+    // one-time: products added before placements were asked default to the back bar (not canned RTDs)
+    if (!s.settings.backBarDefaultV1) {
+      const byId = new Map(s.products.map((p) => [p.id, p]));
+      for (const a of s.accounts) for (const pl of a.placements) {
+        const p = byId.get(pl.productId);
+        if (p && !pl.well && !pl.backBar && !pl.cocktail && !/^(rtd|ready to drink)/i.test(String(p.category || '').trim())) pl.backBar = true;
+      }
+      s.settings.backBarDefaultV1 = true;
+    }
     return s;
   }
   /* Contacts are shared "people": each account keeps links { id, personId, role } and the person's
