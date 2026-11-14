@@ -288,7 +288,7 @@ const Pages = {
     const groups = new Map();
     for (const x of sortBy(pls, (x) => `${x.p?.category || '~'}|${x.p?.brand || '~'}|${x.p?.name || ''}|${String(sizeValue(x.p?.size)).padStart(8, '0')}`)) {
       const k = x.p ? x.p.brand : 'Unknown';
-      if (!groups.has(k)) groups.set(k, { cat: x.p?.category, items: [] });
+      if (!groups.has(k)) groups.set(k, { cat: x.p?.category, sub: x.p?.subcategory, items: [] });
       groups.get(k).items.push(x);
     }
     const flags = (pl) => {
@@ -300,8 +300,25 @@ const Pages = {
       if (Data.product(pl.productId)?.discontinued) f.push('<span class="pill imp-high">Discontinued</span>');
       return f.join('');
     };
+    const plRow = ({ pl, p }) => `<div class="pl" data-act="editPlacement" data-acc="${a.id}" data-id="${pl.id}"><div class="pl-name">${esc(p ? p.name : 'Unknown product')} <span class="size">${esc(p?.size || '')}</span></div><div class="flags">${flags(pl)}</div></div>`;
+    const brandBlock = ([brand, g], sub) => `<div class="pl-group"><div class="pl-brand">${esc(brand)} <span class="pl-cat">${esc(sub ? g.sub || '' : g.cat || '')}</span></div>${g.items.map(plRow).join('')}</div>`;
+    let plHtml;
+    if (!pls.length) plHtml = `<div class="muted small">${s.products.length ? 'No products recorded yet.' : 'Import your product list (More tab) to start tracking products.'}</div>`;
+    else if (pls.length <= 5) plHtml = Array.from(groups).map((e) => brandBlock(e)).join('');
+    else { // long lists fold into categories (Whiskey, Rum…); open/closed is remembered
+      const cats = new Map();
+      for (const [brand, g] of groups) { const c = g.cat || 'Other'; if (!cats.has(c)) cats.set(c, []); cats.get(c).push([brand, g]); }
+      const openSet = UI.acct.plOpen || (UI.acct.plOpen = {});
+      plHtml = `<div class="tree pl-tree">${Array.from(cats).map(([c, brands]) => {
+        const n = brands.reduce((t, [, g]) => t + g.items.length, 0);
+        const fl = { well: 0, backBar: 0, cocktail: 0 };
+        brands.forEach(([, g]) => g.items.forEach(({ pl }) => { for (const k in fl) if (pl[k]) fl[k]++; }));
+        const hint = [fl.well && `${fl.well} well`, fl.backBar && `${fl.backBar} back bar`, fl.cocktail && `${fl.cocktail} cocktail`].filter(Boolean).join(' · ');
+        return `<details class="t-cat" data-plcat="${esc(c)}" ${openSet[a.id + '|' + c] ? 'open' : ''}><summary>${esc(c)}${hint ? ` <span class="small muted" style="font-weight:500">${hint}</span>` : ''}<span class="t-count">${n}</span></summary><div style="padding:0 0 6px 18px">${brands.map((e) => brandBlock(e, true)).join('')}</div></details>`;
+      }).join('')}</div>`;
+    }
     const products = `<div class="card"><h2>Products carried ${pls.length ? `<span class="count">${pls.length}</span>` : ''}<span class="spacer"></span><button class="btn small" data-act="addPlacements" data-acc="${a.id}">${icon('plus')} Add</button></h2>
-      ${pls.length ? Array.from(groups).map(([brand, g]) => `<div class="pl-group"><div class="pl-brand">${esc(brand)} <span class="pl-cat">${esc(g.cat || '')}</span></div>${g.items.map(({ pl, p }) => `<div class="pl" data-act="editPlacement" data-acc="${a.id}" data-id="${pl.id}"><div class="pl-name">${esc(p ? p.name : 'Unknown product')} <span class="size">${esc(p?.size || '')}</span></div><div class="flags">${flags(pl)}</div></div>`).join('')}</div>`).join('') : `<div class="muted small">${s.products.length ? 'No products recorded yet.' : 'Import your product list (More tab) to start tracking products.'}</div>`}
+      ${plHtml}
     </div>`;
 
     // Opportunities

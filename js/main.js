@@ -442,6 +442,11 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { const f = Modal.top()?.querySelector('form'); if (f) f.requestSubmit(); }
 });
 window.addEventListener('popstate', () => { Modal.onPop(); });
+document.addEventListener('toggle', (e) => {
+  const d = e.target; if (!d.dataset || !d.dataset.plcat) return;
+  UI.acct.plOpen = UI.acct.plOpen || {};
+  UI.acct.plOpen[App.currentAccountId() + '|' + d.dataset.plcat] = d.open;
+}, true);
 window.addEventListener('scroll', () => { if (App.lastHash) App.scrolls[App.lastHash] = window.scrollY; }, { passive: true });
 window.addEventListener('hashchange', () => { App.navDepth++; Toast.hide(); App.render(false); });
 // tapping a tab: open that page at the top (and if you're already there, scroll back up)

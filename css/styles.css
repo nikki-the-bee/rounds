@@ -305,3 +305,6 @@ select.mini.on{border-color:var(--accent);color:var(--accent)}
 }
 
 .row-sub .ic{width:13px;height:13px;vertical-align:-2px}
+
+.pl-tree .t-cat>summary{padding:10px 2px}
+.pl-tree .pl-group:first-child .pl-brand{margin-top:2px}
