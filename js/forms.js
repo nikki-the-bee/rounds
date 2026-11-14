@@ -114,7 +114,8 @@ const Forms = {
 
   visit({ accountId, visit } = {}) {
     const isNew = !visit; visit = visit || { at: new Date().toISOString() };
-    const body = `${acctField(isNew ? accountId : visit.accountId)}
+    const sibs = isNew ? [] : Data.visitSiblings(visit).map((x) => Data.account(x.accountId)?.name).filter(Boolean);
+    const body = `${sibs.length ? `<p class="hint" style="margin-top:0">${icon('link')} Logged together with ${sibs.map(esc).join(', ')}. The note and time update there too.</p>` : ''}${acctField(isNew ? accountId : visit.accountId)}
       <label class="field"><span>When</span><input type="datetime-local" name="at" value="${toLocalInput(visit.at)}"></label>
       <label class="field"><span>Visit note (optional)</span><textarea name="note" rows="4" ${isNew ? '' : 'autofocus'} placeholder="Who you saw, what you talked about…">${esc(visit.note)}</textarea></label>`;
     Modal.open(formSheet('visit', isNew ? 'Log visit' : 'Edit visit', body, { id: visit.id || '', del: isNew ? '' : 'deleteVisit', submit: isNew ? 'Log visit' : 'Save' }));
@@ -344,13 +345,17 @@ const FORMS = {
     const accId = fd.get('accountId');
     if (!accId) return Toast.show('Choose an account');
     const at = fd.get('at') ? new Date(fd.get('at')).toISOString() : new Date().toISOString();
-    const id = form.dataset.id;
-    if (id) Object.assign(Data.s.visits.find((v) => v.id === id), { accountId: accId, at, note: val(fd, 'note') });
-    else Data.s.visits.push({ id: uid(), accountId: accId, at, note: val(fd, 'note') });
+    const id = form.dataset.id, note = val(fd, 'note');
+    if (id) {
+      const v = Data.s.visits.find((x) => x.id === id);
+      const sibs = v.accountId === accId ? Data.visitSiblings(v) : [];
+      Object.assign(v, { accountId: accId, at, note });
+      sibs.forEach((x) => Object.assign(x, { at, note })); // the visit at the nearby account(s) stays in step
+    } else Data.s.visits.push({ id: uid(), accountId: accId, at, note });
     Store.save(); App.refresh();
     Modal.close().then(async () => {
       if (id) return;
-      const extra = await askLinkedCheckins(Data.account(accId), at);
+      const extra = await askLinkedCheckins(Data.account(accId), at, note);
       Toast.show(`Visit logged for ${Data.account(accId)?.name}${extra.length ? ` + ${plural(extra.length, 'nearby account')}` : ''}`);
     });
   },

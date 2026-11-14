@@ -94,7 +94,8 @@ const ACT = {
   logVisit(el) { Forms.visit({ accountId: el.dataset.acc || App.currentAccountId() }); },
   editVisit(el) { const v = Data.s.visits.find((x) => x.id === el.dataset.id); if (v) Forms.visit({ visit: v }); },
   async deleteVisit(el) {
-    if (!(await confirmBox('Delete this visit?', { ok: 'Delete', danger: true }))) return;
+    const sibs = Data.visitSiblings(Data.s.visits.find((x) => x.id === el.dataset.id)).map((x) => Data.account(x.accountId)?.name).filter(Boolean);
+    if (!(await confirmBox(`Delete this visit?${sibs.length ? ` The visit at ${sibs.join(', ')} stays.` : ''}`, { ok: 'Delete', danger: true }))) return;
     Data.s.visits = Data.s.visits.filter((x) => x.id !== el.dataset.id);
     Modal.close(); commit();
   },
@@ -482,7 +483,7 @@ document.addEventListener('visibilitychange', () => {
 })();
 
 /* After checking in somewhere that has "Same proximity" links, offer to check in at those too */
-function askLinkedCheckins(a, at) {
+function askLinkedCheckins(a, at, note = '') {
   const near = Data.nearby(a.id);
   if (!near.length) return Promise.resolve([]);
   return new Promise((res) => {
@@ -492,7 +493,7 @@ function askLinkedCheckins(a, at) {
       ${near.map((n) => `<label class="checkline"><input type="checkbox" name="linkedCheckin" value="${n.id}" checked><span><b>${esc(n.name)}</b><br><span class="small muted">${esc(Data.statusText(Data.status(n, lm)))}</span></span></label>`).join('')}
       </div><div class="modal-foot"><button class="btn" data-act="modalClose">Just ${esc(a.name)}</button><button class="btn primary" data-act="linkCheckinsDone">Check in</button></div>`,
     { onClose: (ids) => {
-      const made = (Array.isArray(ids) ? ids : []).map((id) => ({ id: uid(), accountId: id, at, note: '' }));
+      const made = (Array.isArray(ids) ? ids : []).map((id) => ({ id: uid(), accountId: id, at, note }));
       if (made.length) { Data.s.visits.push(...made); commit(); }
       res(made);
     } });

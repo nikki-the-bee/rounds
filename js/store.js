@@ -257,6 +257,11 @@ const Data = {
     for (const g of this.linkGroups(accId)) if (g.type === 'proximity') g.accountIds.forEach((id) => id !== accId && out.add(id));
     return Array.from(out).map((id) => this.account(id)).filter((a) => a && !a.archived);
   },
+  visitSiblings(v) {
+    if (!v) return [];
+    const near = new Set(this.nearby(v.accountId).map((a) => a.id));
+    return this.s.visits.filter((x) => x.id !== v.id && x.at === v.at && near.has(x.accountId));
+  },
   openPriorities(accId) { return this.s.priorities.filter((p) => p.accountId === accId && !p.done); },
   /* Products to offer: hides ones you removed, and discontinued ones (unless kept via keepIds) */
   liveProducts(keepIds) { return this.s.products.filter((p) => !p.hidden && (!p.discontinued || keepIds?.has(p.id))); },
