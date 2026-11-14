@@ -167,11 +167,28 @@ const ACT = {
     const ids = await Picker.products({ title: `Products at ${a.name}`, exclude });
     if (!ids.length) return;
     a = Data.account(a.id); if (!a) return;
+    const setup = await Forms.placementSetup(a, ids);
+    if (!setup) return;
+    a = Data.account(a.id); if (!a) return;
     const now = new Date().toISOString();
-    const added = ids.map((pid) => ({ id: uid(), productId: pid, addedAt: now, since: '' }));
-    a.placements.push(...added);
+    a.placements.push(...setup.items.map((x) => ({ id: uid(), addedAt: now, since: setup.isNew ? toLocalDate() : '', ...x })));
     commit();
-    Toast.show(`Added ${plural(ids.length, 'product')}`, [{ label: 'Mark as new placements', fn: () => { added.forEach((pl) => (pl.since = toLocalDate())); commit(); } }], 8000);
+    Toast.show(`Added ${plural(ids.length, 'product')}${setup.isNew ? ' as new placements' : ''}`);
+  },
+  placementSetupDone() {
+    const box = Modal.top();
+    const items = $$('.ps-item', box).map((el) => {
+      const x = { productId: el.dataset.pid };
+      if (!el.dataset.rtd) for (const k of ['well', 'backBar', 'cocktail']) x[k] = !!el.querySelector(`input[data-k=${k}]`)?.checked;
+      return x;
+    });
+    Modal.close({ items, isNew: !!box.querySelector('input[name=psNew]')?.checked });
+  },
+  psAll(el) { // set one option on every product at once
+    const box = Modal.top(), k = el.dataset.k;
+    const boxes = $$(`input[data-k=${k}]`, box);
+    const on = !boxes.every((b) => b.checked);
+    boxes.forEach((b) => (b.checked = on));
   },
   editPlacement(el) { const a = findAcc(el); const pl = a.placements.find((x) => x.id === el.dataset.id); if (pl) Forms.placement(a, pl); },
   async deletePlacement(el) {

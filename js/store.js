@@ -140,6 +140,8 @@ const Store = (() => {
       }
       Object.assign(p, { category: c.category, subcategory: c.subcategory || '', brand: c.brand, name: c.name, size: c.size || '', builtin: true, discontinued: !!c.discontinued });
     }
+    const inUse = new Set([...s.accounts.flatMap((a) => (a.placements || []).map((pl) => pl.productId)), ...s.opportunities.map((o) => o.productId)]);
+    s.products = s.products.filter((p) => !(p.builtin && !ids.has(p.id) && !inUse.has(p.id)));
     for (const p of s.products) if (p.builtin && !ids.has(p.id)) p.discontinued = true;
     if (Object.keys(remap).length) {
       for (const a of s.accounts) {

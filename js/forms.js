@@ -124,12 +124,12 @@ const Forms = {
   placement(acc, pl) {
     const p = Data.product(pl.productId);
     const body = `<p style="margin:0 0 14px"><b>${esc(Data.productLabel(p, true))}</b><br><span class="muted small">${esc([p?.category, p?.subcategory].filter(Boolean).join(' › '))}</span></p>
-      <div class="field"><span>Where it's poured (optional)</span>
+      ${isRTD(p) ? '<p class="hint">Canned (RTD): no well, back bar or cocktail needed.</p>' : `<div class="field"><span>Where it's poured</span>
         <label class="checkline"><input type="checkbox" name="well" ${pl.well ? 'checked' : ''}> In the well</label>
         <label class="checkline"><input type="checkbox" name="backBar" ${pl.backBar ? 'checked' : ''}> On the back bar</label>
         <label class="checkline"><input type="checkbox" name="cocktail" ${pl.cocktail ? 'checked' : ''} data-chg="plCocktail"> In a cocktail</label>
       </div>
-      <label class="field" id="cocktailField" ${pl.cocktail ? '' : 'hidden'}><span>Cocktail name(s)</span><input type="text" name="cocktailName" value="${esc(pl.cocktailName)}" placeholder="e.g. House Old Fashioned"></label>
+      <label class="field" id="cocktailField" ${pl.cocktail ? '' : 'hidden'}><span>Cocktail name(s)</span><input type="text" name="cocktailName" value="${esc(pl.cocktailName)}" placeholder="e.g. House Old Fashioned"></label>`}
       <label class="field"><span>Placed on (optional)</span><input type="date" name="since" value="${esc(pl.since)}"></label>
       <p class="hint">Set this for new placements. They count toward "New placements this month".</p>
       <label class="field"><span>Competing product (optional)</span><input type="text" name="competitor" value="${esc(pl.competitor)}" placeholder="What they'd pour instead"></label>
@@ -137,6 +137,26 @@ const Forms = {
     Modal.open(formSheet('placement', 'Product placement', body, { id: pl.id, del: 'deletePlacement', extra: `data-acc="${acc.id}"` }));
   },
 
+  /* after choosing products: where is each one poured? (Back bar is on by default; RTDs skip this) */
+  placementSetup(acc, ids) {
+    return new Promise((res) => {
+      const ps = ids.map((id) => Data.product(id)).filter(Boolean);
+      ps.sort((x, y) => `${x.category}|${x.brand}|${x.name}|${String(sizeValue(x.size)).padStart(8, '0')}`.localeCompare(`${y.category}|${y.brand}|${y.name}|${String(sizeValue(y.size)).padStart(8, '0')}`));
+      const many = ps.filter((p) => !isRTD(p)).length > 1;
+      const opt = (k, label, on) => `<label class="slot"><input type="checkbox" data-k="${k}" ${on ? 'checked' : ''}><span>${label}</span></label>`;
+      const rows = ps.map((p) => `<div class="ps-item" data-pid="${p.id}" ${isRTD(p) ? 'data-rtd="1"' : ''} style="padding:10px 0;border-top:1px solid var(--border)">
+          <div style="font-weight:600;margin-bottom:6px">${esc(p.name)} <span class="size">${esc(p.size)}</span></div>
+          ${isRTD(p) ? '<div class="small muted">Canned (RTD): no placement needed</div>' : `<div class="slots" style="display:flex;gap:6px;flex-wrap:wrap">${opt('backBar', 'Back bar', true)}${opt('well', 'Well', false)}${opt('cocktail', 'Cocktail', false)}</div>`}
+        </div>`).join('');
+      Modal.open(`${modalHead(ps.length > 1 ? `Where are these poured?` : 'Where is it poured?')}<div class="modal-body">
+          <p class="hint" style="margin-top:0">${esc(acc.name)}. You can change these any time by tapping the product.</p>
+          ${many ? `<div class="toolbar" style="margin-bottom:4px"><span class="small muted">Toggle all:</span><button class="chip mini-chip" data-act="psAll" data-k="backBar">Back bar</button><button class="chip mini-chip" data-act="psAll" data-k="well">Well</button><button class="chip mini-chip" data-act="psAll" data-k="cocktail">Cocktail</button></div>` : ''}
+          ${rows}
+          <label class="checkline" style="margin-top:8px;border-top:1px solid var(--border);padding-top:12px"><input type="checkbox" name="psNew"> <span>New placements (placed today)<br><span class="small muted">Counts toward "New placements this month"</span></span></label>
+        </div><div class="modal-foot"><button class="btn" data-act="modalClose">Cancel</button><button class="btn primary" data-act="placementSetupDone">Add ${plural(ps.length, 'product')}</button></div>`,
+      { onClose: (v) => res(v || null), cls: ps.length > 4 ? 'tall' : '' });
+    });
+  },
   opp(o) {
     const p = Data.product(o.productId);
     const body = `<p style="margin:0 0 14px"><b>${esc(Data.productLabel(p, true))}</b><br><span class="muted small">${esc(Data.account(o.accountId)?.name || '')} · pitching since ${fmtDate(o.createdAt)}</span></p>
@@ -362,7 +382,8 @@ const FORMS = {
   placement(form, fd) {
     const a = Data.account(form.dataset.acc);
     const pl = a.placements.find((x) => x.id === form.dataset.id);
-    Object.assign(pl, { well: fd.get('well') === 'on', backBar: fd.get('backBar') === 'on', cocktail: fd.get('cocktail') === 'on', cocktailName: val(fd, 'cocktailName'), since: fd.get('since') || '', competitor: val(fd, 'competitor'), notes: val(fd, 'notes') });
+    const rtd = isRTD(Data.product(pl.productId));
+    Object.assign(pl, { well: !rtd && fd.get('well') === 'on', backBar: !rtd && fd.get('backBar') === 'on', cocktail: !rtd && fd.get('cocktail') === 'on', cocktailName: rtd ? '' : val(fd, 'cocktailName'), since: fd.get('since') || '', competitor: val(fd, 'competitor'), notes: val(fd, 'notes') });
     Store.save(); Modal.close(); App.refresh();
   },
   opp(form, fd) {
@@ -491,7 +512,7 @@ function setOppStatus(o, status) {
   if (status === 'won') {
     const a = Data.account(o.accountId);
     if (a && !a.placements.some((pl) => pl.productId === o.productId)) {
-      a.placements.push({ id: uid(), productId: o.productId, since: toLocalDate(), addedAt: new Date().toISOString() });
+      a.placements.push({ id: uid(), productId: o.productId, since: toLocalDate(), addedAt: new Date().toISOString(), backBar: !isRTD(Data.product(o.productId)) });
       msg = 'Won! Added to products carried.';
     } else msg = 'Marked as won';
   }

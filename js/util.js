@@ -100,6 +100,8 @@ function sizeValue(size) {
 }
 /* "jess park" -> "Jess Park" (leaves names with any capitals alone, e.g. "McKnight") */
 function niceName(s) { s = String(s || '').trim().replace(/\s+/g, ' '); return s === s.toLowerCase() ? s.replace(/(^|[\s'-])([a-z])/g, (m, p, c) => p + c.toUpperCase()) : s; }
+/* RTDs are canned: no well / back bar / cocktail placement */
+function isRTD(p) { return !!p && /^(rtd|ready to drink)/i.test(String(p.category || '').trim()); }
 function uniqSorted(arr) { return Array.from(new Set(arr.filter(Boolean))).sort((a, b) => a.localeCompare(b)); }
 
 const ICON_PATHS = {
