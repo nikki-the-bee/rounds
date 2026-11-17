@@ -126,7 +126,7 @@ const Forms = {
 
   placement(acc, pl) {
     const p = Data.product(pl.productId);
-    const body = `<p style="margin:0 0 14px"><b>${esc(Data.productLabel(p, true))}</b><br><span class="muted small">${esc([p?.category, p?.subcategory].filter(Boolean).join(' › '))}</span></p>
+    const body = `<p style="margin:0 0 14px"><b>${esc(Data.productLabel(p, true))}</b><br><span class="muted small">${esc([p?.category, p?.subcategory].filter(Boolean).join(' › '))}</span>${Data.costLine(p) ? `<br><span class="small">${Data.costLine(p)}</span>` : ''}</p>
       ${isRTD(p) ? '<p class="hint">Canned (RTD): no well, back bar or cocktail needed.</p>' : `<div class="field"><span>Where it's poured</span>
         <label class="checkline"><input type="checkbox" name="well" ${pl.well ? 'checked' : ''}> In the well</label>
         <label class="checkline"><input type="checkbox" name="backBar" ${pl.backBar ? 'checked' : ''}> On the back bar</label>
@@ -234,6 +234,10 @@ const Forms = {
     const pitching = Data.s.opportunities.filter((o) => o.productId === p.id && o.status === 'open').map((o) => Data.account(o.accountId)).filter(Boolean);
     Modal.open(`${modalHead(Data.productLabel(p, true))}<div class="modal-body">
       <p class="muted small" style="margin-top:0">${esc([p.category, p.subcategory, p.brand].filter(Boolean).join(' › '))}${p.discontinued ? ' · <b class="red">Discontinued</b>' : ''}</p>
+      <div class="label">Bottle cost</div>
+      <div class="small" style="margin-bottom:6px">${Data.costLine(p, { short: true }) || '<span class="muted">No saved price yet.</span>'}</div>
+      ${(p.costHistory || []).length ? `<div class="small muted" style="margin-bottom:6px">Earlier: ${p.costHistory.slice(0, 3).map((h) => `$${Number(h.cost).toFixed(2)}${h.at ? ` (${fmtDate(h.at)})` : ''}`).join(' · ')}</div>` : ''}
+      <button class="btn small" style="margin-bottom:14px" data-act="calcProduct" data-id="${p.id}">${p.cost > 0 ? 'Update or verify price' : 'Add price'} in calculator</button>
       <div class="label">Carried at ${plural(rows.length, 'account')}</div>
       ${rows.length ? `<div class="list">${rows.join('')}</div>` : '<p class="muted small">Not carried anywhere yet.</p>'}
       ${pitching.length ? `<div class="label">Pitching at</div><div class="list">${pitching.map((a) => `<div class="row" data-act="go" data-href="#/account/${a.id}"><div class="row-main"><div class="row-title">${esc(a.name)}</div></div></div>`).join('')}</div>` : ''}

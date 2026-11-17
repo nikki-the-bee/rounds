@@ -303,6 +303,10 @@ IO.exportSheet = async function () {
   XLSX.utils.book_append_sheet(wb, sum, 'Visit Status');
   const linksS = XLSX.utils.aoa_to_sheet([['Account', 'Link Type', 'Group Name', 'Linked With'], ...s.linkGroups.flatMap((g) => g.accountIds.map((id) => [name(id), Data.LINK_TYPES[g.type], g.name || '', g.accountIds.filter((x) => x !== id).map(name).join(', ')]))]);
   linksS['!cols'] = [30, 16, 26, 60].map((wch) => ({ wch }));
+  const priced = sortBy(s.products.filter((p) => p.cost > 0), (p) => `${p.category}|${p.brand}|${p.name}|${String(sizeValue(p.size)).padStart(8, '0')}`);
+  const costS = XLSX.utils.aoa_to_sheet([['Category', 'Brand', 'Item', 'Size', 'Bottle Cost', 'Cost per oz', 'Last Verified', 'Days Ago'], ...priced.map((p) => { const c = Data.costInfo(p); return [p.category, p.brand, p.name, p.size, c.cost, c.perOz ? Math.round(c.perOz * 1000) / 1000 : '', c.at ? toLocalDate(c.at) : '', c.days ?? '']; })]);
+  costS['!cols'] = [12, 18, 40, 8, 11, 11, 13, 9].map((wch) => ({ wch }));
+  XLSX.utils.book_append_sheet(wb, costS, 'Product Costs');
   XLSX.utils.book_append_sheet(wb, repsS, 'Breakthru Reps');
   XLSX.utils.book_append_sheet(wb, linksS, 'Linked Accounts');
   XLSX.utils.book_append_sheet(wb, notes, 'Notes');

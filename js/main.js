@@ -368,7 +368,29 @@ const ACT = {
   backupNow() { IO.backup(); },
   exportSheet() { IO.exportSheet(); },
   exportVisits() { Forms.exportVisits(); },
-  toolSize(el) { Tools.set({ ml: Number(el.dataset.ml) }); $$('[data-act=toolSize]').forEach((b) => b.classList.toggle('on', b === el)); Tools.refresh(); },
+  toolSize(el) {
+    const ml = Number(el.dataset.ml), p = Tools.product();
+    Tools.set({ ml });
+    if (p && Tools.ml(p) !== ml) { Tools.set({ productId: '' }); App.refresh(); return; } // a different size isn't that product any more
+    $$('[data-act=toolSize]').forEach((b) => b.classList.toggle('on', b === el)); Tools.refresh();
+  },
+  async toolPickProduct() {
+    const id = await Picker.products({ single: true, title: 'Link a product' });
+    const p = id && Data.product(id); if (!p) return;
+    Tools.set({ productId: p.id, ml: Tools.ml(p) || Tools.get().ml, cost: p.cost > 0 ? p.cost.toFixed(2) : Tools.get().cost });
+    App.refresh();
+  },
+  toolClearProduct() { Tools.set({ productId: '' }); App.refresh(); },
+  toolSavePrice() {
+    const p = Tools.product(), r = Tools.calc(); if (!p || !r) return;
+    const now = new Date().toISOString();
+    if (p.cost > 0 && Math.abs(p.cost - r.cost) < 0.005) { p.costAt = now; commit(); Toast.show(`${Data.productLabel(p)}: $${r.cost.toFixed(2)} verified today`); return; }
+    if (p.cost > 0) p.costHistory = [{ cost: p.cost, at: p.costAt || '' }, ...(p.costHistory || [])].slice(0, 10);
+    p.cost = Math.round(r.cost * 100) / 100; p.costAt = now;
+    commit();
+    Toast.show(`Saved $${p.cost.toFixed(2)} to ${Data.productLabel(p)}`);
+  },
+  calcProduct(el) { const p = Data.product(el.dataset.id); if (!p) return; Tools.set({ productId: p.id, ml: Tools.ml(p) || 1000, cost: p.cost > 0 ? p.cost.toFixed(2) : '' }); Modal.closeAll().then(() => (location.hash = '#/tools/oz')); },
   toolPctSet(el) { Tools.set({ pct: el.dataset.pct }); $('input[data-input=toolPct]').value = el.dataset.pct; $('input[data-input=toolPctNum]').value = el.dataset.pct; Tools.refresh(); },
   visitRange(el) {
     const box = Modal.top(), f = box.querySelector('form');
@@ -458,17 +480,20 @@ const TOOL_SIZES = [[1000, '1L'], [750, '750ml'], [1750, '1.75L']];
 const ML_PER_OZ = 29.5735;
 const Tools = {
   KEY: 'rounds-tools',
-  get() { let t = {}; try { t = JSON.parse(localStorage.getItem(this.KEY) || '{}'); } catch {} return { cost: '', ml: 1000, pct: 20, ...t }; },
+  get() { let t = {}; try { t = JSON.parse(localStorage.getItem(this.KEY) || '{}'); } catch {} return { cost: '', ml: 1000, pct: 20, productId: '', ...t }; },
+  product() { const id = this.get().productId; return id ? Data.product(id) : null; },
+  ml(p) { const v = sizeValue(p?.size); return v > 0 && v < 99999 ? Math.round(v) : 0; },
   set(p) { try { localStorage.setItem(this.KEY, JSON.stringify({ ...this.get(), ...p })); } catch {} },
   pct() { const p = parseFloat(String(this.get().pct).replace(',', '.')); return p > 0 && p < 100 ? p : 0; },
   calc() {
     const t = this.get(), cost = parseFloat(String(t.cost).replace(/[$,\s]/g, ''));
     if (!(cost > 0)) return null;
     const ml = Number(t.ml) || 1000, oz = ml / ML_PER_OZ;
-    return { cost, oz, label: TOOL_SIZES.find(([m]) => m === ml)?.[1] || ml + 'ml', perOz: Math.round((cost / oz) * 1000) / 1000, exact: cost / oz };
+    return { cost, oz, label: TOOL_SIZES.find(([m]) => m === ml)?.[1] || this.product()?.size || ml + 'ml', perOz: Math.round((cost / oz) * 1000) / 1000, exact: cost / oz };
   },
   refresh() {
     const p = this.pct(); $$('.pct-chip').forEach((c) => c.classList.toggle('on', Number(c.dataset.pct) === p));
+    const sv = $('#toolSave'); if (sv) sv.innerHTML = Pages.toolSaveBtn();
     const el = $('#toolResult'); if (el) el.innerHTML = location.hash === '#/tools/pour' ? Pages.toolPourResult() : Pages.toolOzResult(); },
 };
 function fmtMoney(n) { return '$' + (Math.round(n * 100) / 100).toFixed(2); }

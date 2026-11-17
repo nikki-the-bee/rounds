@@ -283,6 +283,18 @@ const Data = {
   openPriorities(accId) { return this.s.priorities.filter((p) => p.accountId === accId && !p.done); },
   /* Products to offer: hides ones you removed, and discontinued ones (unless kept via keepIds) */
   liveProducts(keepIds) { return this.s.products.filter((p) => !p.hidden && (!p.discontinued || keepIds?.has(p.id))); },
+  /* saved bottle cost on a product: { cost, at, days, stale, perOz } */
+  costInfo(p) {
+    if (!p || !(p.cost > 0)) return null;
+    const days = p.costAt ? daysBetween(p.costAt) : null, ml = sizeValue(p.size);
+    return { cost: p.cost, at: p.costAt, days, stale: days == null || days > 90, perOz: ml > 0 && ml < 99999 ? p.cost / (ml / 29.5735) : null };
+  },
+  costLine(p, { short = false } = {}) {
+    const c = this.costInfo(p);
+    if (!c) return '';
+    const when = c.at ? `verified ${fmtDate(c.at)} (${relDays(c.days)})` : 'date unknown';
+    return `<span class="${c.stale ? 'warn-t' : ''}">${short ? '' : 'Bottle cost '}<b>$${c.cost.toFixed(2)}</b>${c.perOz ? ` · $${c.perOz.toFixed(3)}/oz` : ''} · ${when}${c.stale ? ' · may be out of date' : ''}</span>`;
+  },
   brands() { return uniqSorted(this.s.products.map((p) => p.brand)); },
   productNames(brand) { return uniqSorted(this.s.products.filter((p) => !brand || p.brand === brand).map((p) => p.name)); },
   reps() { return sortBy(this.s.settings.reps || [], (r) => norm(r.name)); },

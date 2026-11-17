@@ -457,7 +457,7 @@ const Pages = {
     let list = Data.liveProducts(new Set(Object.keys(carried)));
     if (ws.length) list = list.filter((p) => matchesAll([p.category, p.subcategory, p.brand, p.name, p.size].join(' '), ws));
     if (!list.length) return '<div class="empty">No matching products</div>';
-    return renderTree(list, (p) => `<button class="size-chip" data-act="productInfo" data-id="${p.id}">${esc(p.size || 'Any size')}${p.discontinued ? ' <small>disc.</small>' : ''}<span class="n ${carried[p.id] ? 'has' : ''}">${carried[p.id] || 0}</span></button>`,
+    return renderTree(list, (p) => `<button class="size-chip" data-act="productInfo" data-id="${p.id}">${esc(p.size || 'Any size')}${p.cost > 0 ? ` <span class="price ${Data.costInfo(p).stale ? 'warn-t' : ''}">$${p.cost.toFixed(2)}</span>` : ''}${p.discontinued ? ' <small>disc.</small>' : ''}<span class="n ${carried[p.id] ? 'has' : ''}">${carried[p.id] || 0}</span></button>`,
       { open: ws.length > 0 && list.length <= 60, countFn: (ps) => ps.reduce((n, p) => n + (carried[p.id] ? 1 : 0), 0) });
   },
 
@@ -538,17 +538,31 @@ const Pages = {
   },
   /* ====================== TOOLS ====================== */
   toolInputs(withPct) {
-    const t = Tools.get();
+    const t = Tools.get(), p = Tools.product();
     const sizeBtn = ([ml, label]) => `<button class="chip ${Number(t.ml) === ml ? 'on' : ''}" data-act="toolSize" data-ml="${ml}">${label}</button>`;
+    const sizes = [750, 1000, 1750].map((ml) => TOOL_SIZES.find(([m]) => m === ml));
+    if (p && !sizes.some(([m]) => m === Tools.ml(p))) sizes.push([Tools.ml(p), p.size]);
     return `<div class="card">
+      <div class="field"><span>Product (optional)</span>
+        ${p ? `<div style="display:flex;gap:6px"><button class="picker-btn" style="flex:1" data-act="toolPickProduct">${esc(Data.productLabel(p, true))}</button><button class="icon-btn" data-act="toolClearProduct" aria-label="Unlink product">${icon('x')}</button></div>
+          <div class="row-sub" style="margin-top:6px">${Data.costLine(p) || 'No saved price yet. Enter the cost and tap Save.'}</div>`
+          : `<button class="picker-btn" data-act="toolPickProduct" style="font-weight:500;color:var(--muted)">${icon('bottle')} Link a product to save or look up its price…</button>`}
+      </div>
       <label class="field"><span>Bottle cost</span><div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600">$</span>
         <input type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${esc(t.cost)}" data-input="toolCost" style="padding-left:28px;font-size:20px;font-weight:700"></div></label>
-      <div class="field"><span>Bottle size</span><div class="chips">${[750, 1000, 1750].map((ml) => TOOL_SIZES.find(([m]) => m === ml)).map(sizeBtn).join('')}</div></div>
+      <div class="field"><span>Bottle size</span><div class="chips">${sizes.map(sizeBtn).join('')}</div></div>
+      <div id="toolSave">${this.toolSaveBtn()}</div>
       ${withPct ? `<div class="field" style="margin-bottom:4px"><span>Bar cost (pour cost) %</span>
         <div style="display:flex;gap:12px;align-items:center"><input type="range" min="10" max="40" step="0.5" value="${esc(t.pct)}" data-input="toolPct" style="flex:1;accent-color:var(--accent)">
         <div style="position:relative;width:92px"><input type="text" inputmode="decimal" value="${esc(t.pct)}" data-input="toolPctNum" style="padding-right:26px;text-align:right;font-weight:700"><span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted)">%</span></div></div>
         <div class="chips pct-row" style="margin-top:8px">${[10, 15, 18, 20, 22, 25].map((p) => `<button class="chip mini-chip pct-chip ${Number(t.pct) === p ? 'on' : ''}" data-act="toolPctSet" data-pct="${p}">${p}%</button>`).join('')}</div></div>` : ''}
     </div>`;
+  },
+  toolSaveBtn() {
+    const p = Tools.product(), r = Tools.calc();
+    if (!p || !r) return '';
+    const same = p.cost > 0 && Math.abs(p.cost - r.cost) < 0.005;
+    return `<button class="btn ${same ? '' : 'primary'} block" data-act="toolSavePrice">${icon(same ? 'check' : 'download')} ${same ? `Mark $${r.cost.toFixed(2)} verified today` : `Save $${r.cost.toFixed(2)} to ${esc(Data.productLabel(p))}`}</button>`;
   },
   toolOz() {
     return { title: 'Cost per oz', tab: 'more', back: true, html: this.toolInputs(false) + `<div id="toolResult">${this.toolOzResult()}</div>` };

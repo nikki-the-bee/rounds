@@ -164,20 +164,20 @@ const Picker = {
     if (!list.length) return '<div class="empty">No matching contacts</div>';
     return `<div class="list">${list.map((p) => `<div class="row" data-act="modalResolve" data-val="${p.id}"><div class="row-main"><div class="row-title">${esc(p.name || 'Unnamed')}</div><div class="row-sub">${esc(where(p).join(' · '))}</div>${p.phone || p.email ? `<div class="row-sub">${esc([p.phone, p.email].filter(Boolean).join(' · '))}</div>` : ''}</div></div>`).join('')}</div>`;
   },
-  products({ title = 'Add products', exclude = new Map() } = {}) {
+  products({ title = 'Add products', exclude = new Map(), single = false } = {}) {
     return new Promise((res) => {
       if (!Data.liveProducts().length) {
         Toast.show('No products yet. Import your product list from the More tab.');
         return res([]);
       }
-      this._prod = { sel: new Set(), exclude, q: '' };
+      this._prod = { sel: new Set(), exclude, q: '', single };
       Modal.open(`${modalHead(title)}
         <div class="modal-body">
           <div class="search" style="margin-bottom:6px">${icon('search')}<input type="search" placeholder="Search brand, product or size" data-input="pickProdSearch"></div>
           <div id="pickProdTree">${this.prodTree()}</div>
         </div>
-        <div class="modal-foot"><button class="btn" data-act="modalClose">Cancel</button><button class="btn primary" data-act="pickProdDone" id="pickProdDoneBtn" disabled>Add selected</button></div>`,
-      { onClose: (r) => res(r || []), cls: 'tall' });
+        ${single ? '' : '<div class="modal-foot"><button class="btn" data-act="modalClose">Cancel</button><button class="btn primary" data-act="pickProdDone" id="pickProdDoneBtn" disabled>Add selected</button></div>'}`,
+      { onClose: (r) => res(single ? r || null : r || []), cls: 'tall' });
     });
   },
   prodTree() {
@@ -185,6 +185,7 @@ const Picker = {
     let list = Data.liveProducts(new Set(st.exclude.keys()));
     if (ws.length) list = list.filter((p) => matchesAll([p.category, p.subcategory, p.brand, p.name, p.size].join(' '), ws));
     if (!list.length) return '<div class="empty">No matching products</div>';
+    if (st.single) return renderTree(list, (p) => `<button class="size-chip" data-act="modalResolve" data-val="${p.id}">${esc(p.size || 'Any size')}${p.cost > 0 ? ` <span class="price">$${p.cost.toFixed(2)}</span>` : ''}</button>`, { open: ws.length > 0 && list.length <= 60 });
     return renderTree(list, (p) => {
       const ex = st.exclude.get(p.id);
       return `<label class="size-chip ${ex ? 'dis' : ''}"><input type="checkbox" value="${p.id}" data-chg="pickProdToggle" ${st.sel.has(p.id) || ex ? 'checked' : ''} ${ex ? 'disabled' : ''}><span>${esc(p.size || 'Any size')}${ex ? ` <small>· ${esc(ex)}</small>` : ''}</span></label>`;
