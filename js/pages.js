@@ -543,11 +543,11 @@ const Pages = {
     return `<div class="card">
       <label class="field"><span>Bottle cost</span><div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600">$</span>
         <input type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${esc(t.cost)}" data-input="toolCost" style="padding-left:28px;font-size:20px;font-weight:700"></div></label>
-      <div class="field"><span>Bottle size</span><div class="chips">${(withPct ? [750, 1000, 1750] : [1000, 750, 1750]).map((ml) => TOOL_SIZES.find(([m]) => m === ml)).map(sizeBtn).join('')}</div></div>
+      <div class="field"><span>Bottle size</span><div class="chips">${[750, 1000, 1750].map((ml) => TOOL_SIZES.find(([m]) => m === ml)).map(sizeBtn).join('')}</div></div>
       ${withPct ? `<div class="field" style="margin-bottom:4px"><span>Bar cost (pour cost) %</span>
         <div style="display:flex;gap:12px;align-items:center"><input type="range" min="10" max="40" step="0.5" value="${esc(t.pct)}" data-input="toolPct" style="flex:1;accent-color:var(--accent)">
         <div style="position:relative;width:92px"><input type="text" inputmode="decimal" value="${esc(t.pct)}" data-input="toolPctNum" style="padding-right:26px;text-align:right;font-weight:700"><span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted)">%</span></div></div>
-        <div class="chips" style="margin-top:8px">${[18, 20, 22, 25].map((p) => `<button class="chip mini-chip" data-act="toolPctSet" data-pct="${p}">${p}%</button>`).join('')}</div></div>` : ''}
+        <div class="chips pct-row" style="margin-top:8px">${[10, 15, 18, 20, 22, 25].map((p) => `<button class="chip mini-chip pct-chip ${Number(t.pct) === p ? 'on' : ''}" data-act="toolPctSet" data-pct="${p}">${p}%</button>`).join('')}</div></div>` : ''}
     </div>`;
   },
   toolOz() {

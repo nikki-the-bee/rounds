@@ -467,7 +467,9 @@ const Tools = {
     const ml = Number(t.ml) || 1000, oz = ml / ML_PER_OZ;
     return { cost, oz, label: TOOL_SIZES.find(([m]) => m === ml)?.[1] || ml + 'ml', perOz: Math.round((cost / oz) * 1000) / 1000, exact: cost / oz };
   },
-  refresh() { const el = $('#toolResult'); if (el) el.innerHTML = location.hash === '#/tools/pour' ? Pages.toolPourResult() : Pages.toolOzResult(); },
+  refresh() {
+    const p = this.pct(); $$('.pct-chip').forEach((c) => c.classList.toggle('on', Number(c.dataset.pct) === p));
+    const el = $('#toolResult'); if (el) el.innerHTML = location.hash === '#/tools/pour' ? Pages.toolPourResult() : Pages.toolOzResult(); },
 };
 function fmtMoney(n) { return '$' + (Math.round(n * 100) / 100).toFixed(2); }
 
