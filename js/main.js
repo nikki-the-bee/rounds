@@ -536,6 +536,7 @@ document.addEventListener('keydown', (e) => {
 });
 window.addEventListener('popstate', () => { Modal.onPop(); });
 document.addEventListener('toggle', (e) => {
+  if (e.target.dataset && 'glance' in e.target.dataset) { UI.glanceOpen = e.target.open; return; }
   const d = e.target; if (!d.dataset || !d.dataset.plcat) return;
   UI.acct.plOpen = UI.acct.plOpen || {};
   UI.acct.plOpen[App.currentAccountId() + '|' + d.dataset.plcat] = d.open;

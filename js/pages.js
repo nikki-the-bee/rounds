@@ -463,6 +463,7 @@ const Pages = {
 
   /* ====================== MORE ====================== */
   more() {
+    if (App.lastHash !== '#/more') UI.glanceOpen = false;
     const s = Data.s, set = s.settings;
     const now = new Date(), monthKey = toLocalDate(now).slice(0, 7);
     const v7 = s.visits.filter((v) => daysBetween(v.at) < 7).length;
@@ -477,15 +478,19 @@ const Pages = {
     const lb = set.lastBackup;
 
     const h = `
-    <div class="card"><h2>At a glance</h2><div class="stats">
+    <details class="card glance" data-glance ${UI.glanceOpen ? 'open' : ''}><summary><h2 style="margin:0">At a glance</h2><span class="spacer"></span><span class="small muted glance-hint">${v7} visits this week · ${overdue} overdue</span></summary><div class="stats" style="margin-top:10px">
       ${stat(v7, 'Visits, last 7 days')}${stat(v30, 'Visits, last 30 days')}${stat(overdue, 'Overdue / unvisited')}
       ${stat(placedMonth, 'New placements this month')}${stat(wonMonth, 'Opportunities won this month')}${stat(openOpps, 'Open opportunities')}
-    </div></div>
+    </div></details>
 
-    ${this.syncCard()}
+    <div class="card"><h2>Tools</h2>
+      <div class="setting"><div class="row-main"><div class="row-title">Cost per oz</div><div class="row-sub">Bottle cost ÷ bottle size</div></div><a class="btn small" href="#/tools/oz">Open</a></div>
+      <div class="setting"><div class="row-main"><div class="row-title">Pour price (bar cost %)</div><div class="row-sub">Recommended price for 1, 1.5 and 2 oz pours</div></div><a class="btn small" href="#/tools/pour">Open</a></div>
+    </div>
+
     <div class="card"><h2>Organize</h2>
       <div class="setting"><div class="row-main"><div class="row-title">Routes</div><div class="row-sub">${plural(s.routes.length, 'route')}. Group accounts by part of town and move them around.</div></div><a class="btn small" href="#/routes">Manage</a></div>
-      <div class="setting"><div class="row-main"><div class="row-title">Tags</div><div class="row-sub">${plural(Data.tags().length, 'tag')}. Labels like "My connection" or "Chopping Block".</div></div><a class="btn small" href="#/tags">Manage</a></div>
+      <div class="setting"><div class="row-main"><div class="row-title">Tags</div><div class="row-sub">${plural(Data.tags().length, 'tag')}. Labels like "Jordan's account" or "Chopping Block".</div></div><a class="btn small" href="#/tags">Manage</a></div>
       <div class="setting"><div class="row-main"><div class="row-title">Default visit frequency</div><div class="row-sub">Used for accounts without their own target</div></div>
         <select style="width:auto" data-chg="defaultFreq">${FREQ_PRESETS.map(([d, l]) => `<option value="${d}" ${Number(set.defaultFreq) === d ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="setting"><div class="row-main"><div class="row-title">Email with</div><div class="row-sub">What the email buttons open</div></div>
@@ -496,12 +501,9 @@ const Pages = {
       <div class="setting"><div class="row-main"><div class="row-title">Visit history</div><div class="row-sub">Every check-in, newest first</div></div><a class="btn small" href="#/visits/log">Open</a></div>
     </div>
 
-    <div class="card"><h2>Tools</h2>
-      <div class="setting"><div class="row-main"><div class="row-title">Cost per oz</div><div class="row-sub">Bottle cost ÷ bottle size</div></div><a class="btn small" href="#/tools/oz">Open</a></div>
-      <div class="setting"><div class="row-main"><div class="row-title">Pour price (bar cost %)</div><div class="row-sub">Recommended price for 1, 1.5 and 2 oz pours</div></div><a class="btn small" href="#/tools/pour">Open</a></div>
-    </div>
     <div class="card"><h2>Theme</h2><div class="themes">${THEMES.map(([k, l, bg, ac]) => `<button class="theme ${set.theme === k ? 'on' : ''}" data-act="setTheme" data-val="${k}" style="background:${bg};color:#e7edf3"><i style="background:${ac}"></i>${l}</button>`).join('')}</div></div>
 
+    ${this.syncCard()}
     <div class="card"><h2>Your data</h2>
       <div class="setting"><div class="row-main"><div class="row-title">Back up now</div><div class="row-sub">${lb ? 'Last backup ' + relDays(daysBetween(lb)) + ' (' + fmtDate(lb) + ')' : 'Never backed up'}. Choose Google Drive from the share menu.</div></div><button class="btn small primary" data-act="backupNow">${icon('download')} Back up</button></div>
       <div class="setting"><div class="row-main"><div class="row-title">Restore from backup</div><div class="row-sub">Replaces everything on this device with a backup file</div></div><button class="btn small" data-act="restoreFile">${icon('upload')} Restore</button></div>
