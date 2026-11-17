@@ -510,7 +510,7 @@ const Pages = {
       <div class="setting"><div class="row-main"><div class="row-title">Export to spreadsheet</div><div class="row-sub">All accounts in an editable .xlsx. Edit it, then import it back; renames and changes update the same accounts.</div></div><button class="btn small" data-act="exportSheet">${icon('download')} Export</button></div>
       <div class="setting"><div class="row-main"><div class="row-title">Import spreadsheet</div><div class="row-sub">Add products and/or accounts from your .xlsx or .csv template</div></div><button class="btn small" data-act="importFile">${icon('upload')} Import</button></div>
       <div class="setting"><div class="row-main"><div class="row-title">Download import template</div><div class="row-sub">Blank spreadsheet with the right columns</div></div><button class="btn small" data-act="downloadTemplate">${icon('download')} Template</button></div>
-      <p class="small muted" style="margin:10px 0 0">Your data is saved on this device and works offline${Store.persisted ? ', and the browser won\'t clear it to save space' : ''}. Your phone and computer each keep their own copy. To move data from one to the other, back up on one and restore on the other.</p>
+      <p class="small muted" style="margin:10px 0 0">Your data is saved on this device and works offline${Store.persisted ? ', and the browser won\'t clear it to save space' : ''}. Each device keeps its own copy. ${Sync.on ? 'Sync keeps them matched automatically.' : 'Turn on Sync (above) to keep your devices matched automatically.'}</p>
     </div>
 
     <div class="danger-zone"><button class="btn danger" data-act="eraseAll">${icon('trash')} Erase all data on this device</button></div>

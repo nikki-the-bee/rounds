@@ -71,6 +71,19 @@ function confirmBox(msg, { ok = 'OK', danger = false, title = 'Are you sure?' } 
   });
 }
 
+/* Confirm by typing a word (any capitalization); the button stays disabled until it matches */
+function typedConfirm(word, msg, { ok = 'Confirm', title = 'Are you sure?' } = {}) {
+  return new Promise((res) => {
+    const el = Modal.open(`${modalHead(title)}<div class="modal-body"><p style="margin-top:0">${esc(msg)}</p>
+      <input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(word)}" id="typedWord" autofocus></div>
+      <div class="modal-foot"><button class="btn" data-act="modalClose">Cancel</button><button class="btn danger-fill" data-act="modalResolve" data-val="1" id="typedOk" disabled>${esc(ok)}</button></div>`,
+    { onClose: (r) => res(!!r) });
+    const input = el.querySelector('#typedWord'), btn = el.querySelector('#typedOk');
+    input.addEventListener('input', () => { btn.disabled = input.value.trim().toLowerCase() !== word.toLowerCase(); });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !btn.disabled) btn.click(); });
+  });
+}
+
 /* ---------- Product tree (Category > Subcategory > Brand > Product > Sizes) ---------- */
 function renderTree(products, leaf, { open = false, countFn } = {}) {
   const tree = new Map();

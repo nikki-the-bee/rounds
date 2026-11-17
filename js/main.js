@@ -423,7 +423,7 @@ const ACT = {
   downloadTemplate() { IO.template(); },
   async eraseAll() {
     if (!(await confirmBox('Erase every account, note, visit, priority and product on this device? This cannot be undone. Back up first if you might want any of it.', { ok: 'Erase everything', danger: true, title: 'Erase all data?' }))) return;
-    if (!(await confirmBox('Really erase everything?', { ok: 'Yes, erase', danger: true, title: 'Last check' }))) return;
+    if (!(await typedConfirm('delete', 'To erase everything on this device, type delete below.', { ok: 'Erase everything', title: 'Last check' }))) return;
     if (Sync.on) await Sync.disconnect(); // so erasing here never erases your other devices
     await Store.replace(Store.defaults());
     applyTheme(); location.hash = '#/visits'; App.refresh();
