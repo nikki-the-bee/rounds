@@ -496,6 +496,10 @@ const Pages = {
       <div class="setting"><div class="row-main"><div class="row-title">Visit history</div><div class="row-sub">Every check-in, newest first</div></div><a class="btn small" href="#/visits/log">Open</a></div>
     </div>
 
+    <div class="card"><h2>Tools</h2>
+      <div class="setting"><div class="row-main"><div class="row-title">Cost per oz</div><div class="row-sub">Bottle cost ÷ bottle size</div></div><a class="btn small" href="#/tools/oz">Open</a></div>
+      <div class="setting"><div class="row-main"><div class="row-title">Pour price (bar cost %)</div><div class="row-sub">Recommended price for 1, 1.5 and 2 oz pours</div></div><a class="btn small" href="#/tools/pour">Open</a></div>
+    </div>
     <div class="card"><h2>Theme</h2><div class="themes">${THEMES.map(([k, l, bg, ac]) => `<button class="theme ${set.theme === k ? 'on' : ''}" data-act="setTheme" data-val="${k}" style="background:${bg};color:${k === 'light' ? '#16202a' : '#e7edf3'}"><i style="background:${ac}"></i>${l}</button>`).join('')}</div></div>
 
     <div class="card"><h2>Your data</h2>
@@ -532,6 +536,46 @@ const Pages = {
       <div class="setting"><div class="row-main"><div class="row-sub">Changes sync automatically a few seconds after you make them, and when you open the app.</div></div></div>
       <div class="toolbar" style="margin:8px 0 0">${Sync.state === 'error' ? `<button class="btn small" data-act="syncSetup">Update access key</button>` : ''}<span class="spacer"></span><button class="btn small ghost danger" data-act="syncDisconnect">Turn off on this device</button></div></div>`;
   },
+  /* ====================== TOOLS ====================== */
+  toolInputs(withPct) {
+    const t = Tools.get();
+    const sizeBtn = ([ml, label]) => `<button class="chip ${Number(t.ml) === ml ? 'on' : ''}" data-act="toolSize" data-ml="${ml}">${label}</button>`;
+    return `<div class="card">
+      <label class="field"><span>Bottle cost</span><div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600">$</span>
+        <input type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${esc(t.cost)}" data-input="toolCost" style="padding-left:28px;font-size:20px;font-weight:700"></div></label>
+      <div class="field"><span>Bottle size</span><div class="chips">${TOOL_SIZES.map(sizeBtn).join('')}</div></div>
+      ${withPct ? `<div class="field" style="margin-bottom:4px"><span>Bar cost (pour cost) %</span>
+        <div style="display:flex;gap:12px;align-items:center"><input type="range" min="10" max="40" step="0.5" value="${esc(t.pct)}" data-input="toolPct" style="flex:1;accent-color:var(--accent)">
+        <div style="position:relative;width:92px"><input type="text" inputmode="decimal" value="${esc(t.pct)}" data-input="toolPctNum" style="padding-right:26px;text-align:right;font-weight:700"><span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted)">%</span></div></div>
+        <div class="chips" style="margin-top:8px">${[18, 20, 22, 25].map((p) => `<button class="chip mini-chip" data-act="toolPctSet" data-pct="${p}">${p}%</button>`).join('')}</div></div>` : ''}
+    </div>`;
+  },
+  toolOz() {
+    return { title: 'Cost per oz', tab: 'more', back: true, html: this.toolInputs(false) + `<div id="toolResult">${this.toolOzResult()}</div>` };
+  },
+  toolOzResult() {
+    const r = Tools.calc();
+    if (!r) return '<div class="card empty">Enter the bottle cost to see the cost per ounce.</div>';
+    return `<div class="card" style="text-align:center">
+      <div class="muted small">${esc(fmtMoney(r.cost))} ÷ ${esc(r.oz.toFixed(3))} oz (${esc(r.label)})</div>
+      <div style="font-size:44px;font-weight:800;margin:6px 0">$${r.perOz.toFixed(3)}<span style="font-size:18px;font-weight:600" class="muted"> per oz</span></div>
+      <div class="muted">about ${Math.round(r.perOz * 100)}¢ per ounce</div></div>`;
+  },
+  toolPour() {
+    return { title: 'Pour price', tab: 'more', back: true, html: this.toolInputs(true) + `<div id="toolResult">${this.toolPourResult()}</div>` };
+  },
+  toolPourResult() {
+    const r = Tools.calc(), pct = Tools.pct();
+    if (!r) return '<div class="card empty">Enter the bottle cost to see recommended pour prices.</div>';
+    if (!pct) return '<div class="card empty">Enter a bar cost percentage.</div>';
+    const row = (oz) => { const cost = r.exact * oz, price = cost / (pct / 100);
+      return `<tr><td style="font-weight:700">${oz} oz</td><td>${fmtMoney(cost)}</td><td style="font-weight:800;font-size:18px;color:var(--accent)">${fmtMoney(price)}</td><td class="muted">${fmtMoney(Math.ceil(price * 4 - 1e-9) / 4)}</td></tr>`; };
+    return `<div class="card">
+      <div class="muted small" style="margin-bottom:8px">Cost per oz: <b style="color:var(--text)">$${r.perOz.toFixed(3)}</b> (${esc(fmtMoney(r.cost))}, ${esc(r.label)}) at ${pct}% bar cost</div>
+      <table class="hours tool-table"><tr class="muted small"><td>Pour</td><td>Liquor cost</td><td>Recommended price</td><td>Rounded up to $0.25</td></tr>${[1, 1.5, 2].map(row).join('')}</table>
+      <p class="hint" style="margin:10px 0 0">Recommended price = liquor cost ÷ bar cost %. For example, $1.00 of liquor at 20% bar cost = $5.00.</p></div>`;
+  },
+
   /* ====================== CONTACTS ====================== */
   contacts() {
     const res = { title: 'Contacts', tab: 'more', back: true };

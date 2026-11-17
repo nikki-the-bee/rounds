@@ -11,6 +11,8 @@ const ROUTES = [
   [/^#\/more$/, () => Pages.more()],
   [/^#\/routes$/, () => Pages.routes()],
   [/^#\/contacts$/, () => Pages.contacts()],
+  [/^#\/tools\/oz$/, () => Pages.toolOz()],
+  [/^#\/tools\/pour$/, () => Pages.toolPour()],
   [/^#\/person\/([\w-]+)$/, (id) => Pages.person(id)],
   [/^#\/tags$/, () => Pages.tags()],
   [/^#\/reps$/, () => Pages.reps()],
@@ -366,6 +368,8 @@ const ACT = {
   backupNow() { IO.backup(); },
   exportSheet() { IO.exportSheet(); },
   exportVisits() { Forms.exportVisits(); },
+  toolSize(el) { Tools.set({ ml: Number(el.dataset.ml) }); $$('[data-act=toolSize]').forEach((b) => b.classList.toggle('on', b === el)); Tools.refresh(); },
+  toolPctSet(el) { Tools.set({ pct: el.dataset.pct }); $('input[data-input=toolPct]').value = el.dataset.pct; $('input[data-input=toolPctNum]').value = el.dataset.pct; Tools.refresh(); },
   visitRange(el) {
     const box = Modal.top(), f = box.querySelector('form');
     f.from.value = el.dataset.from; f.to.value = el.dataset.to;
@@ -449,7 +453,28 @@ const CHG = {
   fileImport(el) { const f = el.files[0]; el.value = ''; if (f) IO.importFile(f); },
   fileRestore(el) { const f = el.files[0]; el.value = ''; if (f) IO.restore(f); },
 };
+/* ---------- Calculators (inputs remembered on this device) ---------- */
+const TOOL_SIZES = [[1000, '1L'], [750, '750ml'], [1750, '1.75L']];
+const ML_PER_OZ = 29.5735;
+const Tools = {
+  KEY: 'rounds-tools',
+  get() { let t = {}; try { t = JSON.parse(localStorage.getItem(this.KEY) || '{}'); } catch {} return { cost: '', ml: 1000, pct: 20, ...t }; },
+  set(p) { try { localStorage.setItem(this.KEY, JSON.stringify({ ...this.get(), ...p })); } catch {} },
+  pct() { const p = parseFloat(String(this.get().pct).replace(',', '.')); return p > 0 && p < 100 ? p : 0; },
+  calc() {
+    const t = this.get(), cost = parseFloat(String(t.cost).replace(/[$,\s]/g, ''));
+    if (!(cost > 0)) return null;
+    const ml = Number(t.ml) || 1000, oz = ml / ML_PER_OZ;
+    return { cost, oz, label: TOOL_SIZES.find(([m]) => m === ml)?.[1] || ml + 'ml', perOz: Math.round((cost / oz) * 1000) / 1000, exact: cost / oz };
+  },
+  refresh() { const el = $('#toolResult'); if (el) el.innerHTML = location.hash === '#/tools/pour' ? Pages.toolPourResult() : Pages.toolOzResult(); },
+};
+function fmtMoney(n) { return '$' + (Math.round(n * 100) / 100).toFixed(2); }
+
 const INPUT = {
+  toolCost(el) { Tools.set({ cost: el.value }); Tools.refresh(); },
+  toolPct(el) { Tools.set({ pct: el.value }); const n = $('input[data-input=toolPctNum]'); if (n) n.value = el.value; Tools.refresh(); },
+  toolPctNum(el) { Tools.set({ pct: el.value }); const r = $('input[data-input=toolPct]'); if (r && Tools.pct()) r.value = Tools.pct(); Tools.refresh(); },
   acctSearch: debounce((el) => { UI.accounts.q = el.value; $('#acctList').innerHTML = Pages.accountsList(); }, 150),
   contactSearch: debounce((el) => { UI.contacts.q = el.value; $('#contactList').innerHTML = Pages.contactList(); }, 150),
   otherSearch: debounce((el) => { UI.other.q = el.value; $('#otherList').innerHTML = Pages.otherList(); }, 150),

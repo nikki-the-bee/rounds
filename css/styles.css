@@ -313,3 +313,7 @@ select.mini.on{border-color:var(--accent);color:var(--accent)}
 
 @media (max-width:380px){#nav a{font-size:10px}#nav a .ic{width:22px;height:22px}}
 .pill.other-pill{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+
+.tool-table td{padding:10px 6px}
+.tool-table td:not(:first-child){text-align:right}
+.tool-table td:first-child{white-space:nowrap}
