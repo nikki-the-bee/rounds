@@ -23,7 +23,6 @@ const THEMES = [
   ['violet', 'Violet', '#100d18', '#a98bff'], ['forest', 'Forest', '#0c130d', '#7bd88f'],
   ['neon-pink', 'Neon Pink', '#0b0614', '#ff2bd6'], ['neon-cyan', 'Neon Cyan', '#03080d', '#00e5ff'],
   ['neon-lime', 'Neon Lime', '#060904', '#b6ff1a'], ['neon-orange', 'Neon Orange', '#0c0604', '#ff7a1a'],
-  ['light', 'Light', '#f3f5f8', '#1f6feb'],
 ];
 
 function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }

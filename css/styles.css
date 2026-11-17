@@ -14,7 +14,6 @@
 [data-theme=neon-cyan]{--bg:#03080d;--surface:#07121b;--surface2:#0c1c29;--border:#14394f;--text:#e2f8ff;--muted:#86afc4;--accent:#00e5ff;--accent-ink:#001419;--ok:#3dff8b;--warn:#ffe14d;--danger:#ff4d6d}
 [data-theme=neon-lime]{--bg:#060904;--surface:#0d1309;--surface2:#141c0f;--border:#28391b;--text:#efffe4;--muted:#a1bf8c;--accent:#b6ff1a;--accent-ink:#0d1400;--ok:#2dffb3;--warn:#ffd23f;--danger:#ff4f6d}
 [data-theme=neon-orange]{--bg:#0c0604;--surface:#170c07;--surface2:#21120a;--border:#432414;--text:#fff0e6;--muted:#c79e86;--accent:#ff7a1a;--accent-ink:#1f0b00;--ok:#3dff9a;--warn:#ffe03d;--danger:#ff3d6e}
-[data-theme=light]{--bg:#f3f5f8;--surface:#ffffff;--surface2:#eef2f6;--border:#d9e0e8;--text:#16202a;--muted:#5d6b7a;--accent:#1f6feb;--accent-ink:#ffffff;--ok:#16935b;--warn:#c27c00;--danger:#d64545;color-scheme:light}
 
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}

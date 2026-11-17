@@ -74,6 +74,7 @@ const Store = (() => {
     const d = defaults();
     s = s && typeof s === 'object' ? s : d;
     s.settings = { ...d.settings, ...(s.settings || {}) };
+    if (!THEMES.some((t) => t[0] === s.settings.theme)) s.settings.theme = 'midnight'; // e.g. the retired Light theme
     if (!s.settings.typesV2) { s.settings.accountTypes = s.settings.accountTypes.filter((t) => t !== 'Brewery / Taproom'); s.settings.typesV2 = true; }
     for (const k of ['routes', 'products', 'accounts', 'notes', 'priorities', 'visits', 'opportunities', 'linkGroups', 'people']) if (!Array.isArray(s[k])) s[k] = [];
     // tidy link groups: drop missing accounts, and groups with fewer than 2 accounts

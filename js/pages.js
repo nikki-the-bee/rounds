@@ -500,7 +500,7 @@ const Pages = {
       <div class="setting"><div class="row-main"><div class="row-title">Cost per oz</div><div class="row-sub">Bottle cost ÷ bottle size</div></div><a class="btn small" href="#/tools/oz">Open</a></div>
       <div class="setting"><div class="row-main"><div class="row-title">Pour price (bar cost %)</div><div class="row-sub">Recommended price for 1, 1.5 and 2 oz pours</div></div><a class="btn small" href="#/tools/pour">Open</a></div>
     </div>
-    <div class="card"><h2>Theme</h2><div class="themes">${THEMES.map(([k, l, bg, ac]) => `<button class="theme ${set.theme === k ? 'on' : ''}" data-act="setTheme" data-val="${k}" style="background:${bg};color:${k === 'light' ? '#16202a' : '#e7edf3'}"><i style="background:${ac}"></i>${l}</button>`).join('')}</div></div>
+    <div class="card"><h2>Theme</h2><div class="themes">${THEMES.map(([k, l, bg, ac]) => `<button class="theme ${set.theme === k ? 'on' : ''}" data-act="setTheme" data-val="${k}" style="background:${bg};color:#e7edf3"><i style="background:${ac}"></i>${l}</button>`).join('')}</div></div>
 
     <div class="card"><h2>Your data</h2>
       <div class="setting"><div class="row-main"><div class="row-title">Back up now</div><div class="row-sub">${lb ? 'Last backup ' + relDays(daysBetween(lb)) + ' (' + fmtDate(lb) + ')' : 'Never backed up'}. Choose Google Drive from the share menu.</div></div><button class="btn small primary" data-act="backupNow">${icon('download')} Back up</button></div>
