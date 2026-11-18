@@ -15,6 +15,8 @@ const UI = {
   save() { try { localStorage.setItem('rounds-ui', JSON.stringify({ visits: this.visits, accounts: this.accounts, prios: this.prios })); } catch {} },
 };
 
+/* how many notes / visits show before 'Show all' */
+const NOTES_SHOWN = 3, VISITS_SHOWN = 1;
 const ACCT_FILTER_KEYS = ['route', 'tag', 'type', 'tier', 'rep', 'brand', 'product', 'placement', 'status', 'prio'];
 
 function routeChip(r, on, act, extra = '') {
@@ -304,10 +306,10 @@ const Pages = {
 
     // Notes
     const notesAll = sortBy(s.notes.filter((n) => n.accountId === a.id), (n) => n.createdAt).reverse();
-    const notesShown = ua.notesAll ? notesAll : notesAll.slice(0, 4);
+    const notesShown = ua.notesAll ? notesAll : notesAll.slice(0, NOTES_SHOWN);
     const notes = `<div class="card"><h2>Notes ${notesAll.length ? `<span class="count">${notesAll.length}</span>` : ''}<span class="spacer"></span><button class="btn small" data-act="addNote" data-acc="${a.id}">${icon('plus')} Add</button></h2>
       ${notesShown.length ? notesShown.map((n) => `<div class="item" data-act="editNote" data-id="${n.id}"><div class="item-head">${fmtDateTime(n.createdAt)}${n.updatedAt && n.updatedAt !== n.createdAt ? ` · edited ${fmtDate(n.updatedAt)}` : ''}</div><div class="pre">${esc(n.text)}</div></div>`).join('') : '<div class="muted small">No notes yet.</div>'}
-      ${notesAll.length > 4 ? `<button class="link-btn" data-act="acctToggle" data-key="notesAll">${ua.notesAll ? 'Show fewer' : `Show all ${notesAll.length} notes`}</button>` : ''}
+      ${notesAll.length > NOTES_SHOWN ? `<button class="link-btn" data-act="acctToggle" data-key="notesAll">${ua.notesAll ? 'Show fewer' : `Show all ${notesAll.length} notes`}</button>` : ''}
     </div>`;
 
     // Products carried
@@ -377,10 +379,10 @@ const Pages = {
 
     // Visits
     const vAll = sortBy(s.visits.filter((v) => v.accountId === a.id), (v) => v.at).reverse();
-    const vShown = ua.visitsAll ? vAll : vAll.slice(0, 5);
+    const vShown = ua.visitsAll ? vAll : vAll.slice(0, VISITS_SHOWN);
     const visits = `<div class="card"><h2>Visits ${vAll.length ? `<span class="count">${vAll.length}</span>` : ''}<span class="spacer"></span><button class="btn small" data-act="logVisit" data-acc="${a.id}">${icon('plus')} Past visit</button></h2>
       ${vShown.length ? vShown.map((v) => `<div class="item" data-act="editVisit" data-id="${v.id}"><div class="item-head">${fmtWeekdayDate(v.at)} · ${fmtTime(v.at)}</div>${v.note ? `<div class="pre">${esc(v.note)}</div>` : ''}</div>`).join('') : '<div class="muted small">No visits yet. Tap Check in when you stop by.</div>'}
-      ${vAll.length > 5 ? `<button class="link-btn" data-act="acctToggle" data-key="visitsAll">${ua.visitsAll ? 'Show fewer' : `Show all ${vAll.length} visits`}</button>` : ''}
+      ${vAll.length > VISITS_SHOWN ? `<button class="link-btn" data-act="acctToggle" data-key="visitsAll">${ua.visitsAll ? 'Show fewer' : `Show all ${vAll.length} visits`}</button>` : ''}
     </div>`;
 
     // Linked accounts
@@ -633,10 +635,10 @@ const Pages = {
         <div class="contact-actions">${this.contactActions(p)}</div></div></div>`;
     const accts = `<div class="card"><h2>Accounts <span class="count">${where.length}</span></h2>${where.map(({ a, role }) => { const st = Data.status(a, lm); return `<div class="contact" data-act="openAccount" data-id="${a.id}" style="cursor:pointer">${Data.isOther(a) ? '' : statusDot(st)}<div class="contact-main"><div class="row-title">${esc(a.name)} ${Data.isOther(a) ? '<span class="pill other-pill">Other</span>' : ''}${a.archived ? ' <span class="pill">Archived</span>' : ''}</div><div class="row-sub">${esc([role, Data.statusText(st, a)].filter(Boolean).join(' · '))}</div></div></div>`; }).join('')}</div>`;
     const notesAll = sortBy(Data.s.notes.filter((n) => n.personId === p.id), (n) => n.createdAt).reverse();
-    const shown = UI.acct.notesAll ? notesAll : notesAll.slice(0, 5);
+    const shown = UI.acct.notesAll ? notesAll : notesAll.slice(0, NOTES_SHOWN);
     const notes = `<div class="card"><h2>Notes ${notesAll.length ? `<span class="count">${notesAll.length}</span>` : ''}<span class="spacer"></span><button class="btn small" data-act="addPersonNote" data-id="${p.id}">${icon('plus')} Add</button></h2>
       ${shown.length ? shown.map((n) => `<div class="item" data-act="editNote" data-id="${n.id}"><div class="item-head">${fmtDateTime(n.createdAt)}${n.updatedAt && n.updatedAt !== n.createdAt ? ` · edited ${fmtDate(n.updatedAt)}` : ''}</div><div class="pre">${esc(n.text)}</div></div>`).join('') : '<div class="muted small">Keep track of things like their birthday, family, and likes and dislikes.</div>'}
-      ${notesAll.length > 5 ? `<button class="link-btn" data-act="acctToggle" data-key="notesAll">${UI.acct.notesAll ? 'Show fewer' : `Show all ${notesAll.length} notes`}</button>` : ''}</div>`;
+      ${notesAll.length > NOTES_SHOWN ? `<button class="link-btn" data-act="acctToggle" data-key="notesAll">${UI.acct.notesAll ? 'Show fewer' : `Show all ${notesAll.length} notes`}</button>` : ''}</div>`;
     return { title: p.name || 'Contact', back: true, tab: 'more', actions: where[0] ? `<button class="btn small" data-act="editPerson" data-id="${p.id}">${icon('edit')} Edit</button>` : '', html: head + `<div class="acct-grid"><div>${notes}</div><div>${accts}</div></div>` };
   },
   /* ====================== ROUTES ====================== */
@@ -704,10 +706,10 @@ const Pages = {
       ${openP.length ? openP.map((p) => this.prioRow(p, true)).join('') : '<div class="muted small">No open priorities on these accounts.</div>'}</div>`;
     // notes about the rep
     const notesAll = sortBy(s.notes.filter((n) => n.repId === r.id), (n) => n.createdAt).reverse();
-    const shown = ua.notesAll ? notesAll : notesAll.slice(0, 5);
+    const shown = ua.notesAll ? notesAll : notesAll.slice(0, NOTES_SHOWN);
     const notes = `<div class="card"><h2>Notes ${notesAll.length ? `<span class="count">${notesAll.length}</span>` : ''}<span class="spacer"></span><button class="btn small" data-act="addRepNote" data-id="${r.id}">${icon('plus')} Add</button></h2>
       ${shown.length ? shown.map((n) => `<div class="item" data-act="editNote" data-id="${n.id}"><div class="item-head">${fmtDateTime(n.createdAt)}${n.updatedAt && n.updatedAt !== n.createdAt ? ` · edited ${fmtDate(n.updatedAt)}` : ''}</div><div class="pre">${esc(n.text)}</div></div>`).join('') : '<div class="muted small">No notes yet.</div>'}
-      ${notesAll.length > 5 ? `<button class="link-btn" data-act="acctToggle" data-key="notesAll">${ua.notesAll ? 'Show fewer' : `Show all ${notesAll.length} notes`}</button>` : ''}</div>`;
+      ${notesAll.length > NOTES_SHOWN ? `<button class="link-btn" data-act="acctToggle" data-key="notesAll">${ua.notesAll ? 'Show fewer' : `Show all ${notesAll.length} notes`}</button>` : ''}</div>`;
     // accounts
     const list = `<div class="card" style="padding-bottom:4px"><h2>Accounts <span class="count">${accts.length}</span><span class="spacer"></span><button class="btn small" data-act="repAddAccounts" data-id="${r.id}">${icon('plus')} Assign</button></h2>
       ${accts.length ? accts.map((a) => { const st = Data.status(a, lm); const op = Data.openPriorities(a.id).length;

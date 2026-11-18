@@ -27,6 +27,7 @@ const App = {
   fromTab: false,    // set when a bottom/side tab is tapped: those always open at the top
   render(keepScroll) {
     const h = location.hash || '#/visits';
+    if (!keepScroll && h !== this.lastHash) Object.assign(UI.acct, { notesAll: false, visitsAll: false, showDone: false, oppsClosed: false }); // new page: sections start collapsed
     let r = null;
     for (const [re, fn] of ROUTES) { const m = h.match(re); if (m) { r = fn(...m.slice(1)); break; } }
     if (!r) { location.replace('#/visits'); return; }
