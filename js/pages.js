@@ -283,6 +283,7 @@ const Pages = {
           ${c.email ? `<div class="row-sub">${esc(c.email)}</div>` : ''}
           ${c.instagram ? `<div class="row-sub">@${esc(c.instagram)}</div>` : ''}
           ${also.length ? `<div class="row-sub">${icon('link')} Also at ${also.map((o) => `<a href="#/account/${o.id}">${esc(o.name)}</a>`).join(', ')}</div>` : ''}
+          <div class="row-sub"><a href="#/person/${c.personId}">${icon('note')} ${(() => { const n = Data.s.notes.filter((x) => x.personId === c.personId).length; return n ? `Profile · ${plural(n, 'note')}` : 'Profile & notes'; })()}</a></div>
         </div>
         <div class="contact-actions">
           ${c.phone ? `<a class="icon-btn" href="${telHref(c.phone)}" aria-label="Call">${icon('phone')}</a><a class="icon-btn" href="${smsHref(c.phone)}" aria-label="Text">${icon('msg')}</a>` : ''}
@@ -611,7 +612,7 @@ const Pages = {
   contactList() {
     const ws = words(UI.contacts.q);
     let list = Data.s.people.map((p) => ({ p, where: this.personWhere(p) }));
-    if (ws.length) list = list.filter(({ p, where }) => matchesAll([p.name, p.phone, p.email, p.instagram, ...where.map((w) => w.a.name + ' ' + w.role)].join(' '), ws));
+    if (ws.length) list = list.filter(({ p, where }) => matchesAll([p.name, p.phone, p.email, p.instagram, ...where.map((w) => w.a.name + ' ' + w.role), ...Data.s.notes.filter((n) => n.personId === p.id).map((n) => n.text)].join(' '), ws));
     list.sort((x, y) => norm(x.p.name || '~').localeCompare(norm(y.p.name || '~')));
     if (!list.length) return '<div class="empty">No matching contacts.</div>';
     return `<div class="list-meta"><span>${plural(list.length, 'person', 'people')}</span></div><div class="list" style="padding:0 14px">${list.map(({ p, where }) => `<div class="contact">
@@ -631,7 +632,12 @@ const Pages = {
           ${p.phone ? `<div class="row-sub">${esc(p.phone)}</div>` : ''}${p.email ? `<div class="row-sub">${esc(p.email)}</div>` : ''}${p.instagram ? `<div class="row-sub">@${esc(p.instagram)}</div>` : ''}</div>
         <div class="contact-actions">${this.contactActions(p)}</div></div></div>`;
     const accts = `<div class="card"><h2>Accounts <span class="count">${where.length}</span></h2>${where.map(({ a, role }) => { const st = Data.status(a, lm); return `<div class="contact" data-act="openAccount" data-id="${a.id}" style="cursor:pointer">${Data.isOther(a) ? '' : statusDot(st)}<div class="contact-main"><div class="row-title">${esc(a.name)} ${Data.isOther(a) ? '<span class="pill other-pill">Other</span>' : ''}${a.archived ? ' <span class="pill">Archived</span>' : ''}</div><div class="row-sub">${esc([role, Data.statusText(st, a)].filter(Boolean).join(' · '))}</div></div></div>`; }).join('')}</div>`;
-    return { title: p.name || 'Contact', back: true, tab: 'more', actions: where[0] ? `<button class="btn small" data-act="editPerson" data-id="${p.id}">${icon('edit')} Edit</button>` : '', html: head + accts };
+    const notesAll = sortBy(Data.s.notes.filter((n) => n.personId === p.id), (n) => n.createdAt).reverse();
+    const shown = UI.acct.notesAll ? notesAll : notesAll.slice(0, 5);
+    const notes = `<div class="card"><h2>Notes ${notesAll.length ? `<span class="count">${notesAll.length}</span>` : ''}<span class="spacer"></span><button class="btn small" data-act="addPersonNote" data-id="${p.id}">${icon('plus')} Add</button></h2>
+      ${shown.length ? shown.map((n) => `<div class="item" data-act="editNote" data-id="${n.id}"><div class="item-head">${fmtDateTime(n.createdAt)}${n.updatedAt && n.updatedAt !== n.createdAt ? ` · edited ${fmtDate(n.updatedAt)}` : ''}</div><div class="pre">${esc(n.text)}</div></div>`).join('') : '<div class="muted small">Keep track of things like their birthday, family, and likes and dislikes.</div>'}
+      ${notesAll.length > 5 ? `<button class="link-btn" data-act="acctToggle" data-key="notesAll">${UI.acct.notesAll ? 'Show fewer' : `Show all ${notesAll.length} notes`}</button>` : ''}</div>`;
+    return { title: p.name || 'Contact', back: true, tab: 'more', actions: where[0] ? `<button class="btn small" data-act="editPerson" data-id="${p.id}">${icon('edit')} Edit</button>` : '', html: head + `<div class="acct-grid"><div>${notes}</div><div>${accts}</div></div>` };
   },
   /* ====================== ROUTES ====================== */
   routes() {

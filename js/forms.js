@@ -93,13 +93,14 @@ const Forms = {
     Modal.open(formSheet('contact', person ? `Add ${person.name || 'contact'}` : isNew ? 'New contact' : 'Edit contact', body, { id: isNew ? '' : c.id, del: isNew ? '' : 'deleteContact', extra: `data-acc="${esc(accId || '')}"` }));
   },
 
-  note({ accountId, repId, note } = {}) {
+  note({ accountId, repId, personId, note } = {}) {
     const isNew = !note; note = note || {};
-    repId = repId || note.repId || '';
-    const about = repId ? `Rep: ${Data.rep(repId)?.name || ''}` : Data.account(note.accountId)?.name || '';
-    const body = `${repId ? `<input type="hidden" name="repId" value="${esc(repId)}">${isNew ? `<p class="hint" style="margin-top:0">${esc(about)}</p>` : ''}` : isNew ? acctField(accountId) : `<input type="hidden" name="accountId" value="${note.accountId}">`}
+    repId = repId || note.repId || ''; personId = personId || note.personId || '';
+    const about = repId ? `Rep: ${Data.rep(repId)?.name || ''}` : personId ? `Contact: ${Data.person(personId)?.name || ''}` : Data.account(note.accountId)?.name || '';
+    const owner = repId ? `<input type="hidden" name="repId" value="${esc(repId)}">` : personId ? `<input type="hidden" name="personId" value="${esc(personId)}">` : '';
+    const body = `${owner ? `${owner}${isNew ? `<p class="hint" style="margin-top:0">${esc(about)}</p>` : ''}` : isNew ? acctField(accountId) : `<input type="hidden" name="accountId" value="${note.accountId}">`}
       ${!isNew ? `<p class="hint" style="margin-top:0">${esc(about)}${note.updatedAt && note.updatedAt !== note.createdAt ? ` · last edited ${fmtDateTime(note.updatedAt)}` : ''}</p>` : ''}
-      <label class="field"><span>Note</span><textarea name="text" autofocus rows="6" placeholder="What happened, what you learned…">${esc(note.text)}</textarea></label>
+      <label class="field"><span>Note</span><textarea name="text" autofocus rows="6" placeholder="${personId || repId ? 'Birthday, family, likes and dislikes, what you talked about…' : 'What happened, what you learned…'}">${esc(note.text)}</textarea></label>
       <label class="field"><span>Date &amp; time</span><input type="datetime-local" name="at" value="${toLocalInput(note.createdAt || new Date())}" max="${toLocalInput(new Date(Date.now() + 864e5))}"></label>
       ${isNew ? '<p class="hint">Set to right now. Change it if you\'re catching up on an earlier day.</p>' : ''}`;
     Modal.open(formSheet('note', isNew ? 'New note' : 'Edit note', body, { id: note.id || '', del: isNew ? '' : 'deleteNote' }));
@@ -352,8 +353,8 @@ const FORMS = {
     if (!linkId && !form.dataset.acc) Toast.show(`Contact added to ${a.name}`, [{ label: 'Open', fn: () => (location.hash = '#/account/' + a.id) }]);
   },
   note(form, fd) {
-    const text = val(fd, 'text'), accId = fd.get('accountId') || '', repId = fd.get('repId') || '';
-    if (!accId && !repId) return Toast.show('Choose an account');
+    const text = val(fd, 'text'), accId = fd.get('accountId') || '', repId = fd.get('repId') || '', personId = fd.get('personId') || '';
+    if (!accId && !repId && !personId) return Toast.show('Choose an account');
     if (!text) return Toast.show('The note is empty');
     const id = form.dataset.id, now = new Date().toISOString();
     const at = fd.get('at') ? new Date(fd.get('at')).toISOString() : null;
@@ -364,9 +365,9 @@ const FORMS = {
       if (n.text !== text) { n.text = text; n.updatedAt = now; }
     } else {
       const when = at || now;
-      Data.s.notes.push({ id: uid(), accountId: accId, repId, text, createdAt: when, updatedAt: when });
+      Data.s.notes.push({ id: uid(), accountId: accId, repId, personId, text, createdAt: when, updatedAt: when });
     }
-    if (repId) { Store.save(); Modal.close(); App.refresh(); return; }
+    if (repId || personId) { Store.save(); Modal.close(); App.refresh(); return; }
     Store.save(); Modal.close(); App.refresh();
     if (!id && !location.hash.includes(accId)) Toast.show(`Note added to ${Data.account(accId)?.name}`, [{ label: 'Open', fn: () => (location.hash = '#/account/' + accId) }]);
   },

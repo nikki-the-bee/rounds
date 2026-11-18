@@ -173,7 +173,8 @@ const ACT = {
     const form = el.closest('form'); const a = Data.account(form.dataset.acc || form.accountId.value);
     const c = Data.contactsOf(a).find((x) => x.id === el.dataset.id); if (!c) return;
     const others = Data.accountsOfPerson(c.personId).filter((o) => o.id !== a.id);
-    if (!(await confirmBox(`Remove ${c.name || 'this contact'} from ${a.name}?${others.length ? ` They'll stay on ${others.map((o) => o.name).join(', ')}.` : ''}`, { ok: 'Remove', danger: true }))) return;
+    const pn = Data.s.notes.filter((n) => n.personId === c.personId).length;
+    if (!(await confirmBox(`Remove ${c.name || 'this contact'} from ${a.name}?${others.length ? ` They'll stay on ${others.map((o) => o.name).join(', ')}.` : pn ? ` This was their last account, so their ${plural(pn, 'note')} will be deleted too.` : ''}`, { ok: 'Remove', danger: true }))) return;
     Data.unlinkContact(Data.account(a.id), c.id);
     Modal.close(); commit();
   },
@@ -312,6 +313,7 @@ const ACT = {
   },
   async newRep() { const id = await Forms.rep(); if (id && Data.rep(id)) location.hash = '#/rep/' + id; },
   addRepNote(el) { Forms.note({ repId: el.dataset.id }); },
+  addPersonNote(el) { Forms.note({ personId: el.dataset.id }); },
   async repAddAccounts(el) {
     const r = Data.rep(el.dataset.id);
     const ids = await Picker.account({ title: `Assign to ${r.name}`, multi: true, exclude: Data.s.accounts.filter((a) => a.repId === r.id).map((a) => a.id) });

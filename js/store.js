@@ -334,7 +334,10 @@ const Data = {
   unlinkContact(a, linkId) {
     const l = a.contacts.find((x) => x.id === linkId); if (!l) return;
     a.contacts = a.contacts.filter((x) => x.id !== linkId);
-    if (!this.accountsOfPerson(l.personId).length) this.s.people = this.s.people.filter((p) => p.id !== l.personId);
+    if (!this.accountsOfPerson(l.personId).length) {
+      this.s.people = this.s.people.filter((p) => p.id !== l.personId);
+      this.s.notes = this.s.notes.filter((n) => n.personId !== l.personId);
+    }
   },
   sortPriorities(list, mode = 'importance') {
     const imp = (p) => IMPORTANCE[p.importance]?.rank ?? 1;
