@@ -674,8 +674,8 @@ const Pages = {
     let h = `<p class="small muted" style="margin:0 4px 10px">Each rep is saved once and picked from a list on each account, so spellings stay consistent. Tap a rep for their contact info, accounts, priorities and notes.</p>`;
     const prios = (id) => Data.s.priorities.filter((p) => !p.done && Data.account(p.accountId)?.repId === id).length;
     h += reps.length ? `<div class="list">${reps.map((r) => `<div class="row" data-act="go" data-href="#/rep/${r.id}">
-        <span class="icon-btn ghost" style="width:28px;height:28px">${icon('user')}</span>
-        <div class="row-main"><div class="row-title">${esc(r.name)} ${prios(r.id) ? `<span class="pill flag-pill">${icon('flag')}${prios(r.id)}</span>` : ''}</div><div class="row-sub">${esc([r.title, plural(count(r.id), 'account')].filter(Boolean).join(' · '))}</div></div>
+        <span class="icon-btn ghost" style="width:28px;height:28px">${icon(r.house ? 'store' : 'user')}</span>
+        <div class="row-main"><div class="row-title">${esc(r.name)} ${prios(r.id) ? `<span class="pill flag-pill">${icon('flag')}${prios(r.id)}</span>` : ''}</div><div class="row-sub">${esc([r.house ? 'House account' : r.title, plural(count(r.id), 'account')].filter(Boolean).join(' · '))}</div></div>
         ${r.phone ? `<a class="icon-btn" href="${telHref(r.phone)}" aria-label="Call">${icon('phone')}</a>` : ''}
       </div>`).join('')}</div>` : '<div class="empty">No reps yet.</div>';
     return { title: 'Breakthru reps', tab: 'reps', html: h, actions: `<button class="btn small primary" data-act="newRep">${icon('plus')} New</button>` };
@@ -690,10 +690,10 @@ const Pages = {
       <div class="contact" style="border-top:0;padding-top:0">
         <div class="contact-main" data-act="editRep" data-id="${r.id}">
           <div class="row-title" style="font-size:18px">${esc(r.name)}</div>
-          <div class="row-sub">${esc(['Breakthru', r.title].filter(Boolean).join(' · '))}</div>
+          <div class="row-sub">${r.house ? 'Breakthru house account · no contact info needed' : esc(['Breakthru', r.title].filter(Boolean).join(' · '))}</div>
           ${r.phone ? `<div class="row-sub">${esc(r.phone)}</div>` : ''}
           ${r.email ? `<div class="row-sub">${esc(r.email)}</div>` : ''}
-          ${!r.phone && !r.email ? `<div class="row-sub"><button class="link-btn" style="padding:4px 0" data-act="editRep" data-id="${r.id}">+ Add phone and email</button></div>` : ''}
+          ${!r.phone && !r.email && !r.house ? `<div class="row-sub"><button class="link-btn" style="padding:4px 0" data-act="editRep" data-id="${r.id}">+ Add phone and email</button></div>` : ''}
         </div>
         <div class="contact-actions">
           ${r.phone ? `<a class="icon-btn" href="${telHref(r.phone)}" aria-label="Call">${icon('phone')}</a><a class="icon-btn" href="${smsHref(r.phone)}" aria-label="Text">${icon('msg')}</a>` : ''}

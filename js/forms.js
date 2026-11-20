@@ -199,11 +199,11 @@ const Forms = {
       const isNew = !r; r = r || {};
       const n = r.id ? Data.s.accounts.filter((a) => a.repId === r.id).length : 0;
       const body = `<label class="field"><span>Rep's name *</span><input type="text" name="name" value="${esc(r.name)}" ${isNew ? 'autofocus' : ''} autocomplete="off" placeholder="First and last name"></label>
-        <label class="field"><span>Title (optional)</span><input type="text" name="title" value="${esc(r.title)}" autocomplete="off" placeholder="Sales Rep, Key Account Manager…"></label>
+        ${r.house ? '<p class="hint">House account: no title, phone or email needed. Its notes and accounts are on its page.</p>' : `<label class="field"><span>Title (optional)</span><input type="text" name="title" value="${esc(r.title)}" autocomplete="off" placeholder="Sales Rep, Key Account Manager…"></label>
         <label class="field"><span>Phone</span><input type="tel" name="phone" value="${esc(r.phone)}" autocomplete="off"></label>
-        <label class="field"><span>Email</span><input type="email" name="email" value="${esc(r.email)}" autocomplete="off"></label>
+        <label class="field"><span>Email</span><input type="email" name="email" value="${esc(r.email)}" autocomplete="off"></label>`}
         ${isNew ? `<p class="hint">Already listed: ${Data.reps().map((x) => esc(x.name)).join(', ') || 'nobody yet'}.</p>` : `<p class="hint">Assigned to ${plural(n, 'account')}. Renaming updates all of them.</p>`}`;
-      Modal.open(formSheet('rep', isNew ? 'New Breakthru rep' : 'Edit rep', body, { id: r.id || '', del: isNew ? '' : 'deleteRep' }), { onClose: res });
+      Modal.open(formSheet('rep', isNew ? 'New Breakthru rep' : r.house ? 'Edit house account' : 'Edit rep', body, { id: r.id || '', del: isNew ? '' : 'deleteRep' }), { onClose: res });
     });
   },
   tag(t) {

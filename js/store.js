@@ -75,6 +75,13 @@ const Store = (() => {
     s = s && typeof s === 'object' ? s : d;
     s.settings = { ...d.settings, ...(s.settings || {}) };
     if (!THEMES.some((t) => t[0] === s.settings.theme)) s.settings.theme = 'midnight'; // e.g. the retired Light theme
+    if (!s.settings.houseRepV1) {
+      s.settings.reps ||= [];
+      const existing = s.settings.reps.find((r) => r.id === 'rep-house' || /house account|inside sales/i.test(r.name || ''));
+      if (existing) existing.house = true;
+      else s.settings.reps.push({ id: 'rep-house', name: 'Inside Sales / House Account', house: true });
+      s.settings.houseRepV1 = true;
+    }
     if (!s.settings.typesV2) { s.settings.accountTypes = s.settings.accountTypes.filter((t) => t !== 'Brewery / Taproom'); s.settings.typesV2 = true; }
     for (const k of ['routes', 'products', 'accounts', 'notes', 'priorities', 'visits', 'opportunities', 'linkGroups', 'people']) if (!Array.isArray(s[k])) s[k] = [];
     // tidy link groups: drop missing accounts, and groups with fewer than 2 accounts
@@ -298,7 +305,7 @@ const Data = {
   },
   brands() { return uniqSorted(this.s.products.map((p) => p.brand)); },
   productNames(brand) { return uniqSorted(this.s.products.filter((p) => !brand || p.brand === brand).map((p) => p.name)); },
-  reps() { return sortBy(this.s.settings.reps || [], (r) => norm(r.name)); },
+  reps() { return sortBy(this.s.settings.reps || [], (r) => (r.house ? '0' : '1') + norm(r.name)); }, // house account first
   rep(id) { return id ? (this.s.settings.reps || []).find((r) => r.id === id) : null; },
   repName(a) { return this.rep(a.repId)?.name || ''; },
   /* find a rep by name (ignoring case/spacing) or add them */
